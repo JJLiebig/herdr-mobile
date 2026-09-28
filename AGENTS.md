@@ -7,7 +7,9 @@ stack decisions are recorded separately.
 ## Hard requirements
 
 - Keep overview metadata-only and focus limited to one existing pane.
-- Never relaunch agents, create conversations, move the workflow to WSL, or spawn a shell as a fallback.
+- Use standard Herdr attach/resume behavior for an explicitly opened existing pane (owner-approved).
+  The phone may control its shared terminal dimensions; release control when leaving/backgrounding.
+  Never create conversations, move the workflow to WSL, or spawn a shell as a fallback.
 - Native Windows is a first-class target. Use the exact configured Herdr executable and its own CLI/schema.
 - Do not add a flag that bypasses the live-input implementation/validation gate.
 - Normal prompts and raw terminal dialog keys are different operations. Do not create an automatic Approve action.
@@ -18,7 +20,8 @@ stack decisions are recorded separately.
 - Unknown outcomes must not be automatically retried. A durable exact-once guarantee is not implemented.
 - Never log prompt bodies, audio, raw terminal frames, keys, or tokens.
 - Browser audio goes to a configured provider only after explicit consent and action; never auto-send its transcript.
-- The server remains loopback-only, with exact Host/Origin and explicit Tailscale-user checks for remote mode.
+- Direct private-network access is owner-approved. Support an explicit bind address (including 0.0.0.0)
+  and exact HTTP/HTTPS origin; keep Host/Origin checks. Network/firewall access replaces application login.
 - Do not add public ingress, telemetry, background account sync, generic process execution, or arbitrary proxy APIs.
 
 Run `npm run check` after changes. Tests require no packages. Add tests alongside behavior, not just docs.

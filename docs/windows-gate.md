@@ -1,7 +1,11 @@
 # Native Windows acceptance gate
 
-**No live input may be enabled until this is proved on the actual Windows desktop and laptop builds.**
+**No live prompt/key input may be enabled until this is proved on the actual Windows desktop and laptop builds.**
 Use an isolated existing test session, not valuable active production work. The read-only probe does not create one.
+
+The owner separately approved standard Herdr attach/resume and shared terminal sizing. Viewport control is
+implemented and tested on the desktop; it does not enable prompts or raw keys. This supersedes the original
+non-resizing/no-resume assumption for an explicitly opened pane.
 
 ## 1. Capture exact identity and supported interfaces
 
@@ -42,7 +46,7 @@ cannot provide this, add a narrowly scoped upstream guarded operation instead of
 | German umlauts, emoji, multiline paste and IME composition | Exact reviewed text; Enter never implicitly submits composer |
 | Android keyboard opens/closes; rotate; screen lock; return | Readable single pane, usable composer, fresh state before writes |
 | Voice permission denied, 3-minute cap, 8-MB cap, pane switch, concurrent typing | Recoverable failure; original draft binding; no auto-send |
-| Unauthorized login/Host/Origin; public ingress attempt | Reject before session read or paid transcription |
+| Foreign Host/Origin; untrusted network access | Reject browser requests; firewall limits network access |
 
 ## Evidence to attach to the future live-control PR
 

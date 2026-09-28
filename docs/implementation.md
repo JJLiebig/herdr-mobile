@@ -1,13 +1,17 @@
 # Implementation slices from this draft
 
-## Slice 1 — native-Windows observation (next)
+## Slice 1 — native-Windows observation (desktop checked; phone acceptance pending)
+
+The desktop now has direct HTTP access, xterm 6.0.0 pinned/audited, corrected pane labels,
+automatic read-only reconnect and draft-storage fixes. Native observation and real Chrome rendering
+passed on the desktop; see [validation](validation.md). The second host and actual Android acceptance remain open.
 
 Run the probe on both hosts. Confirm snapshot fields from the exact installed schema, with fixtures for Codex,
 OpenCode, a shell pane, and two sessions in one cwd. Install/audit/pin xterm with a lockfile or audited vendored assets.
 Prove one read-only observer, initial full-frame behavior, reconnect, bounded output and cleanup. Replace the provisional
 read-only snapshot polling with event subscription only after baseline correctness is measured.
 
-Exit: the phone can locate and read the intended live pane over private HTTPS without changing desktop layout.
+Exit: the phone can locate and read the intended live pane over the private network without changing desktop layout.
 No live-write feature flag is added.
 
 ## Slice 2 — deliberate, identity-safe live control

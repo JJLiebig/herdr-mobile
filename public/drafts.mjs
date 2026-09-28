@@ -1,12 +1,27 @@
 import { MAX_DRAFT } from '../shared/model.mjs';
 const PREFIX='herdr-mobile:draft:';
+const MAX_AGE=7*86400000;
 /** Bounded, browser-local draft storage. Audio and terminal output never enter it. */
 export class DraftStore {
-  constructor(storage=localStorage){this.storage=storage;this.memory=new Map();this.available=true;}
+  constructor(storage){
+    this.memory=new Map();this.available=true;
+    try{this.storage=storage ?? globalThis.localStorage;this.prune();}catch{this.available=false;}
+  }
+  prune(keep){
+    const entries=[];
+    for(let i=0;i<this.storage.length;i++){
+      const key=this.storage.key(i);if(!key?.startsWith(PREFIX))continue;
+      let savedAt=0;try{savedAt=Number(JSON.parse(this.storage.getItem(key))?.savedAt)||0;}catch{}
+      entries.push({key,savedAt});
+    }
+    entries.sort((a,b)=>a.key===keep?-1:b.key===keep?1:b.savedAt-a.savedAt);
+    for(const [i,{key,savedAt}] of entries.entries())if(i>=50 || Date.now()-savedAt>=MAX_AGE)this.storage.removeItem(key);
+  }
   get(key){
-    if(this.memory.has(key))return this.memory.get(key);
+    const cached=this.memory.get(key);
+    if(cached && (!cached.savedAt || Date.now()-cached.savedAt<MAX_AGE))return cached;
     let d={text:'',revision:0,pending:'',lastSent:'',delivery:null};
-    try{const raw=JSON.parse(this.storage.getItem(PREFIX+key)||'null');if(raw && Date.now()-raw.savedAt<7*86400000 && typeof raw.text==='string' && raw.text.length<=MAX_DRAFT && Number.isSafeInteger(raw.revision) && raw.revision>=0)d={...d,...raw};}
+    try{const raw=JSON.parse(this.storage.getItem(PREFIX+key)||'null');if(raw && Date.now()-raw.savedAt<MAX_AGE && typeof raw.text==='string' && raw.text.length<=MAX_DRAFT && Number.isSafeInteger(raw.revision) && raw.revision>=0)d={...d,...raw};else if(raw)this.storage.removeItem(PREFIX+key);}
     catch{this.available=false;}
     this.memory.set(key,d);return d;
   }
@@ -14,8 +29,7 @@ export class DraftStore {
     const value={...this.get(key),...patch,savedAt:Date.now()};this.memory.set(key,value);
     try{
       this.storage.setItem(PREFIX+key,JSON.stringify(value));
-      const keys=[];for(let i=0;i<this.storage.length;i++){const k=this.storage.key(i);if(k?.startsWith(PREFIX))keys.push(k);}
-      if(keys.length>50){const older=keys.filter(k=>k!==PREFIX+key).map(k=>({k,t:JSON.parse(this.storage.getItem(k)||'{}').savedAt||0})).sort((a,b)=>a.t-b.t);for(const {k} of older.slice(0,keys.length-50))this.storage.removeItem(k);}
+      this.prune(PREFIX+key);
     }catch{this.available=false;}
     return value;
   }

@@ -8,7 +8,7 @@ Android / desktop browser
                  |
         same-origin HTTP + SSE
                  |
-  Node companion on 127.0.0.1:8787
+  Node companion on configured address:8787
       |-- demo fixtures (explicitly marked)
       |-- Herdr read-only adapter
       |     |-- exact.exe api snapshot
@@ -17,8 +17,9 @@ Android / desktop browser
             fixed OpenAI endpoint; server-held key
 ```
 
-Tailscale Serve supplies private HTTPS in front of the loopback companion when remote mode is explicitly
-configured. One companion per host; host switching is top-level navigation to an allowlisted origin.
+Direct access uses a configured bind address and HTTP/HTTPS origin; private-network/firewall access
+replaces an application login. Tailscale Serve is optional HTTPS for browser microphone support.
+One companion per host; host switching is top-level navigation to a configured origin.
 No remote-shell bootstrap, new PTY runtime or cloud orchestration layer is introduced.
 
 ## ADR 001: no-build reference prototype
@@ -32,7 +33,7 @@ Tradeoff: no compile-time TypeScript contract, no embedded single Rust executabl
 React/TypeScript and a Rust companion can replace either side later without changing the product or wire contract;
 do not maintain duplicate implementations now. Do not port just for parity before the Windows transport is proven.
 
-The only optional third-party UI component is locally installed xterm.js for live ANSI frames. Demo output is
+The only third-party UI component is locally installed xterm.js for live ANSI frames. Demo output is
 plain fixture text, not a hand-written terminal emulator. No dependency is fetched automatically by this code.
 
 ## Wire surface
@@ -42,12 +43,20 @@ plain fixture text, not a hand-written terminal emulator. No dependency is fetch
 | GET /api/snapshot | Normalized metadata, host, companion epoch, timestamps and capabilities |
 | GET /api/output?terminal=... | Demo-only illustrative text |
 | GET /api/terminal?terminal=...&pane=...&session=...&epoch=... | Read-only SSE observer, matched to current snapshot |
+| POST /api/terminal?... | Standard Herdr controller stream with phone columns/rows; no terminal input |
+| POST /api/viewport | Resize the exact attached controller using its stream ID; invalid after release |
 | POST /api/prompt | Demo-only operation; live mode returns 501 |
 | POST /api/transcribe | Bounded recorded audio, explicit cloud consent, returned text |
 
 A companion epoch is NOT a Herdr server epoch. It protects draft requests across companion restarts but cannot
 prove daemon identity across a daemon restart under the same companion. This is one reason live writes remain
 unimplemented. Before adding them, obtain a real Herdr server/occupant generation or prove equivalent pinning.
+
+Owner-approved exception: viewport control uses standard Herdr attach/resume, including its ability to resume
+a dormant saved agent. It changes the shared PTY dimensions, with no automatic takeover and no keystrokes.
+The browser measures terminal cells against the available content box and sends changes on viewport resize.
+Closing the stream kills the controller client and releases Herdr ownership. Herdr restores active desktop
+geometry where available; a detached host may retain the last size until its next desktop attach/resize.
 
 The frontend has separate local draft keys and action targets. Known native sessions preserve drafts across
 companion restarts; unknown sessions isolate by companion epoch. Reopening is required after an identity change.

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-28T00:00:00Z",
+  "title": "Design System: Herdr Mobile",
+  "extensions": {
+    "colorMeta": {
+      "surface": {"role":"neutral","displayName":"Charcoal canvas","canonical":"#1b2024"},
+      "ink": {"role":"neutral","displayName":"Soft white","canonical":"#f1f3f2"},
+      "blocked": {"role":"semantic","displayName":"Blocked","canonical":"#ed7978"},
+      "working": {"role":"semantic","displayName":"Working","canonical":"#f2c85e"},
+      "done": {"role":"semantic","displayName":"Finished","canonical":"#69cbb5"}
+    },
+    "typographyMeta": {"thread":{"displayName":"Session name","purpose":"Primary landing row text."}},
+    "shadows": [],
+    "motion": [{"name":"tree-disclosure","value":"160ms ease","purpose":"Show expansion state."}],
+    "breakpoints": [{"name":"phone","value":"520px"}]
+  },
+  "components": [
+    {"name":"Landing tab","kind":"nav","refersTo":"landing-tabs","description":"Choose Priority or Spaces.","html":"<button class=\"ds-landing-tab\" aria-selected=\"true\">Priority</button>","css":".ds-landing-tab{background:transparent;border:0;border-bottom:2px solid #f1f3f2;color:#f1f3f2;font:500 16px system-ui;padding:14px 1px}.ds-landing-tab:hover{color:#fff}.ds-landing-tab:focus-visible{outline:2px solid #69cbb5;outline-offset:2px}"},
+    {"name":"Priority thread","kind":"button","refersTo":"thread-row","description":"One existing agent with its space context.","html":"<button class=\"ds-thread\"><span class=\"ds-dot\"></span><span>review<small>Nextide</small></span></button>","css":".ds-thread{display:flex;align-items:center;gap:15px;width:100%;min-height:66px;padding:8px 4px;background:#1b2024;border:0;border-bottom:1px solid #3b4449;color:#f1f3f2;text-align:left;font:16px system-ui}.ds-thread:hover{background:#252c30}.ds-thread:focus-visible{outline:2px solid #69cbb5}.ds-thread small{display:block;color:#aeb8bd;font-size:12px}.ds-dot{width:8px;height:8px;border-radius:50%;background:#ed7978}"}
+  ],
+  "narrative": {
+    "northStar":"The session list",
+    "overview":"A quiet phone view of existing Herdr sessions. Priority shows agent state; Spaces provides a direct tree to an existing pane.",
+    "keyCharacteristics":["Small header","Flat status-grouped rows","Space and tab disclosure tree"],
+    "rules":[],
+    "dos":["Keep metadata sparse","Use explicit space labels before repo names"],
+    "donts":["Add cards or a hero","Preview terminal output in the landing"]
+  }
+}

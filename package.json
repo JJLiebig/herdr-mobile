@@ -13,5 +13,8 @@
     "check": "node scripts/check.mjs",
     "probe:windows": "node --env-file-if-exists=.env scripts/probe-herdr.mjs"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@xterm/xterm": "6.0.0"
+  }
 }

@@ -3,19 +3,24 @@
 **v0.1.0-draft.1 — a mobile-first companion for existing Herdr agents.**
 
 Find an agent, open one pane, read, type or dictate, review, and send deliberately.
-Windows remains the execution host. No agent relaunch, WSL migration, or duplicate conversation.
+Windows remains the execution host. Existing panes use standard Herdr attach/resume behavior.
+
+The mobile terminal now controls the selected pane's shared dimensions so the agent renders at phone
+width. Keyboard and rotation changes resize it too. Leaving/backgrounding releases control to Herdr;
+an active desktop geometry owner restores its sizing. Live prompt submission and keys remain disabled.
 
 > This is a first implementation draft, not a finished live-control release.
-> Demo interaction works. The real Herdr adapter is read-only and still needs native-Windows validation.
+> Demo interaction works. The real Herdr adapter supports native-Windows read-only observation.
 > There is no switch to enable live prompt submission in this revision.
 
 [Overview preview](docs/preview/overview.png) · [Focused agent preview](docs/preview/focus.png)
 
 ## Run the draft
 
-Requires Node.js 22.16+ and npm. **No dependency install or build step is needed for the demo.**
+Requires Node.js 22.16+ and npm. No build step is needed. Install the pinned terminal renderer once:
 
 ```powershell
+npm ci --ignore-scripts
 npm start
 ```
 
@@ -37,11 +42,11 @@ billing, or active agent session is involved.
 | Focus: one output view, normal multiline composer, explicit Send | Implemented in demo; DOM-smoke checked |
 | Draft isolation, late-transcript conflicts, duplicate-operation handling | Implemented; automated tests |
 | Browser recording and host-side OpenAI file transcription | Implemented; provider mocked in tests; real microphone/API not exercised |
-| Herdr snapshot normalization and JSON terminal observer | Adapter code present; native-Windows acceptance gate remains open |
-| Live ANSI display | Optional xterm renderer present; dependency not installed or validated here |
+| Herdr snapshot normalization and JSON terminal observer | Native Windows snapshot, full frame, reconnect and layout preservation checked |
+| Live ANSI display | xterm 6.0.0 installed and locked; Android display acceptance remains open |
 | Real agent prompts, terminal keys, input ownership, resize/release | **Not implemented; server rejects live mutations** |
 | PWA manifest | Included; no service worker/offline mode in this draft |
-| Private-tailnet host/origin/user checks | Implemented and HTTP-tested; actual Tailscale deployment not exercised |
+| Direct private-network access | Configurable bind and exact origin; no separate app login |
 
 ### The deliberately small first-draft stack
 
@@ -80,33 +85,35 @@ The probe runs version/schema/snapshot/help reads only and writes local evidence
 Then set `HERDR_MOBILE_MODE=herdr-readonly` and the same absolute `HERDR_BIN_PATH` in `.env`.
 Keep `HERDR_SOCKET_PATH` aligned with the existing session where necessary.
 
-For the optional live ANSI renderer, install the pinned draft dependency locally:
-
-```powershell
-npm install --no-save --ignore-scripts --package-lock=false @xterm/xterm@5.5.0
-npm start
-```
-
-The browser loads its JavaScript/CSS from the local companion, never a runtime CDN. Version 5.5.0 is a
-pinned prototype target, not a claim about the latest release. Dependency installation, auditing and
-renderer integration remain unverified here; commit a reviewed dependency/lockfile before shipping it.
-Without it, the demo still works and live mode displays an explicit renderer-installation message.
+The renderer is included by `npm ci`. Its JavaScript/CSS comes from the companion, never a runtime CDN.
+Interrupted read-only streams reconnect after a fresh snapshot validates the same pane and session.
 
 Read [Windows gate](docs/windows-gate.md) before testing real terminals. A failed adapter does not fall
 back to launching Herdr, a new agent, a shell, or a WSL instance.
 
 ## Android over Tailscale
 
-Configure your exact `https://machine.tailnet-name.ts.net` origin plus an explicit login allowlist in
-`.env`; use Tailscale **Serve**, not Funnel. The companion always binds `127.0.0.1`.
+In `.env`, set the following, replacing the sample IP with the output of `tailscale ip -4`:
 
-A typical Serve command is `tailscale serve --bg http://127.0.0.1:8787`. Verify it against your installed
-Tailscale CLI and confirm the configured origin, forwarded Host and identity behavior before relying on
-it. The default loopback configuration deliberately rejects unconfigured remote origins.
+```dotenv
+HERDR_MOBILE_MODE=herdr-readonly
+HERDR_BIN_PATH=C:\Code\herdr\target\release\herdr.exe
+HERDR_MOBILE_BIND=0.0.0.0
+HERDR_MOBILE_ORIGIN=http://100.64.0.1:8787
+```
+
+Run `npm start`, then open that URL on your phone with Tailscale connected. No Serve setup or app login
+is needed. Access is controlled by your network and host firewall. Keep the port private.
+For home Wi-Fi too, set `HERDR_MOBILE_EXTRA_ORIGINS=http://192.168.178.24:8787` using your computer's
+LAN address. Multiple additional addresses can be comma-separated. Drafts are separate for each URL.
+
+Typing works over HTTP. The in-page Record button requires HTTPS; phone keyboard dictation is independent.
+For optional HTTPS, use Tailscale Serve with the companion bound to loopback and configure the exact
+HTTPS origin. There is no mandatory Tailscale-user header or login allowlist.
 
 For a machine switcher, copy `herdr-mobile.config.example.json` to `herdr-mobile.config.json`, replace
 the sample URLs, and set `HERDR_MOBILE_CONFIG=herdr-mobile.config.json`. Switching hosts navigates to the
-other host's own private HTTPS origin; no central host aggregator or cross-origin API proxy exists.
+other host's own configured HTTP/HTTPS origin; no central host aggregator or cross-origin API proxy exists.
 
 See [security](SECURITY.md). Do not expose the companion's port publicly.
 

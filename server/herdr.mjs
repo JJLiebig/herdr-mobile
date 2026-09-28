@@ -8,13 +8,17 @@ const statuses=new Set(['working','blocked','idle','done','unknown']);
 export function normalizeSnapshot(raw, cfg, epoch) {
   const s=raw?.result?.snapshot ?? raw?.snapshot ?? raw;
   if(!s || typeof s.version!=='string' || !Number.isInteger(s.protocol) || !Array.isArray(s.workspaces) || !Array.isArray(s.tabs) || !Array.isArray(s.agents) || !Array.isArray(s.panes) || s.panes.length>1000 || s.agents.length>1000) throw new Error('unsupported_snapshot');
-  const workspace=new Map(s.workspaces.map(w=>[w.id ?? w.workspace_id, cleanText(w.label) || cleanText(w.name) || 'Space']));
-  const tabs=new Map(s.tabs.map(t=>[t.id ?? t.tab_id, cleanText(t.label) || cleanText(t.name) || 'Tab']));
+  const workspace=new Map(s.workspaces.map(w=>[w.id ?? w.workspace_id,w]));
+  const tabs=new Map(s.tabs.map(t=>[t.id ?? t.tab_id,t]));
   const agentPanes=new Set(s.agents.map(a=>a.pane_id));
-  const rows=[...s.agents,...s.panes.filter(p=>!agentPanes.has(p.id ?? p.pane_id)).map(p=>({...p,pane_id:p.id ?? p.pane_id,agent:undefined,agent_status:'unknown'}))];
+  const paneMetadata=new Map(s.panes.map(p=>[p.id ?? p.pane_id,p]));
+  const rows=[...s.agents.map(a=>({...paneMetadata.get(a.pane_id),...a})),...s.panes.filter(p=>!agentPanes.has(p.id ?? p.pane_id)).map(p=>({...p,pane_id:p.id ?? p.pane_id,agent:undefined,agent_status:'unknown'}))];
   const panes=rows.map(a=>{
     if(typeof a.terminal_id!=='string' || typeof a.pane_id!=='string') throw new Error('unsupported_pane_identity');
-    return {terminalId:a.terminal_id,paneId:a.pane_id,sessionId:typeof a.agent_session?.value==='string'?a.agent_session.value:'',agent:cleanText(a.agent,60),title:titleFor(a),space:workspace.get(a.workspace_id) || cleanText(a.workspace_id) || 'Space',tab:tabs.get(a.tab_id)||cleanText(a.tab_id)||'Tab',status:statuses.has(a.agent_status)?a.agent_status:'unknown',summary:cleanText(a.tokens?.summary),summarySource:a.tokens?.summary?'Herdr display metadata':'',observedAt:Date.now()};
+    const space=workspace.get(a.workspace_id),tab=tabs.get(a.tab_id);
+    const spaceLabel=cleanText(space?.label)||cleanText(space?.name);
+    const repo=cleanText(space?.worktree?.repo_name);
+    return {terminalId:a.terminal_id,paneId:a.pane_id,sessionId:typeof a.agent_session?.value==='string'?a.agent_session.value:'',agent:cleanText(a.agent,60),title:titleFor(a),spaceId:a.workspace_id,tabId:a.tab_id,spaceLabel,repo,space:spaceLabel||repo||cleanText(a.workspace_id)||'Space',tab:cleanText(tab?.label)||cleanText(tab?.name)||cleanText(a.tab_id)||'Tab',status:statuses.has(a.agent_status)?a.agent_status:'unknown',summary:cleanText(a.tokens?.summary),summarySource:a.tokens?.summary?'Herdr display metadata':'',observedAt:Date.now()};
   });
   return {schemaVersion:1,host:{id:cfg.hostId,label:cfg.hostLabel},epoch,mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{liveWrites:false,terminalObserve:true,voice:!!cfg.apiKey},herdrVersion:s.version,herdrProtocol:s.protocol,panes};
 }
@@ -39,10 +43,11 @@ export class HerdrReadonly {
     })();
     return this.inflight;
   }
-  observe(pane,onFrame,onClose) {
+  observe(pane,onFrame,onClose,geometry=null) {
     if(this.children.size>=4) throw new HttpError(429,'observer_limit');
     // Only explicit terminal IDs returned by the current snapshot reach this argv.
-    const child=spawn(this.cfg.herdrBin,['terminal','session','observe',pane.terminalId,'--cols','100','--rows','32'],{windowsHide:true,shell:false,stdio:['ignore','pipe','ignore']});
+    const child=spawn(this.cfg.herdrBin,['terminal','session',geometry?'control':'observe',pane.terminalId,'--cols',String(geometry?.cols||100),'--rows',String(geometry?.rows||32)],{windowsHide:true,shell:false,stdio:[geometry?'pipe':'ignore','pipe','ignore']});
+    child.stdin?.on('error',()=>stop('terminal_disconnected'));
     this.children.add(child);
     const decoder=new StringDecoder('utf8'); let buffer='';let ended=false;let sawFull=false;let lastSeq=-1;
     const stop=(reason='closed')=>{if(ended)return;ended=true;clearTimeout(startup);this.children.delete(child);child.kill();onClose(reason);};
@@ -65,7 +70,9 @@ export class HerdrReadonly {
     });
     child.on('error',()=>stop('observer_start_failed'));
     child.on('exit',()=>stop('observer_exited'));
-    return ()=>stop('released');
+    const release=()=>stop('released');
+    release.resize=({cols,rows})=>{if(ended||!geometry)throw new HttpError(409,'viewport_closed');child.stdin.write(JSON.stringify({type:'terminal.resize',cols,rows})+'\n');};
+    return release;
   }
   close(){for(const child of this.children)child.kill();this.children.clear();}
 }

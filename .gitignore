@@ -4,6 +4,7 @@ node_modules/
 !.env.example
 herdr-mobile.config.json
 artifacts/
+.impeccable/questions/
 coverage/
 *.log
 *.tgz

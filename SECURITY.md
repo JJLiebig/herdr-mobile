@@ -3,20 +3,20 @@
 This is a personal remote-control companion under development, not an audited production service.
 Live writes to Herdr are intentionally absent.
 
-The HTTP listener binds only 127.0.0.1. Remote use requires a configured Tailscale HTTPS origin and
-an explicit `HERDR_MOBILE_ALLOWED_LOGINS` allowlist. The application trusts Tailscale identity headers
-only under that configured loopback-proxy topology. Local processes on the host remain inside the trust
-boundary and can forge proxy headers; this is not isolation against a compromised local user/process.
-Do not put an arbitrary reverse proxy in front of the server or expose the backend port.
+The HTTP listener defaults to 127.0.0.1. Set `HERDR_MOBILE_BIND=0.0.0.0` and an exact
+`HERDR_MOBILE_ORIGIN` for direct phone access over your private network. There is no application login:
+any device allowed through the network/firewall can read panes and use a configured voice provider.
+Restrict the port to the intended trusted devices/network; do not publish it on the internet.
+Tailscale Serve is optional HTTPS, not an authentication dependency. Identity headers are not trusted or required.
 
 Every request is checked for the expected Host, nonforeign Origin, and browser cross-site context.
-Mutations require the exact Origin plus `X-Herdr-Mobile: 1`. Remote identity is checked before reading
-session state or accepting audio. No wildcard CORS or generic Herdr RPC passthrough is present.
+Mutations require the exact Origin plus `X-Herdr-Mobile: 1`. These browser protections remain in place
+for direct access. No wildcard CORS or generic Herdr RPC passthrough is present.
 
 Static files use an explicit route map; .env, source/config files and arbitrary filesystem paths are
-not served. Terminal/metadata content is treated as untrusted text. The optional terminal renderer
+not served. Terminal/metadata content is treated as untrusted text. The locally installed terminal renderer
 blocks browser-action OSC handlers and registers no clipboard or link integration. Its dependency
-and complete ANSI behavior still require validation.
+is pinned with an npm lockfile. Complete ANSI behavior still requires device validation.
 
 Only the configured Herdr executable is launched, with fixed read-only argv and no shell. Web requests
 cannot specify executable paths, command lines, raw RPC methods, takeover, process launch or agent startup.
@@ -27,8 +27,9 @@ companion. Browser recordings are capped at three minutes. Keys stay on the host
 terminal output, or upstream errors are logged or deliberately persisted server-side. Cloud provider
 retention is governed by that provider/account, not this application; do not claim zero provider retention.
 
-Draft text, pending transcripts and last-sent copies live in browser-local storage for up to seven days,
-with at most 50 stored entries. This is not encrypted application storage. Audio is not stored there.
+Draft text, pending transcripts and last-sent copies expire after seven days, with at most 50 stored entries.
+Expired entries are deleted when the app next loads or saves; a closed browser cannot run cleanup.
+This is not encrypted application storage. Audio is not stored there.
 Use the Clear drafts action on shared devices. There is no offline service-worker cache in this draft.
 
 Before any live-input release, finish docs/windows-gate.md, specifically occupant replacement races,
