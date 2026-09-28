@@ -1,0 +1,305 @@
+Syntax checked 21 JavaScript modules.
+TAP version 13
+# Subtest: draft changes never overwrite another agent
+ok 1 - draft changes never overwrite another agent
+  ---
+  duration_ms: 1.048862
+  type: 'test'
+  ...
+# Subtest: drafts survive reload, including pending transcript and unknown delivery
+ok 2 - drafts survive reload, including pending transcript and unknown delivery
+  ---
+  duration_ms: 1.291559
+  type: 'test'
+  ...
+# Subtest: unavailable browser storage retains in-memory editing
+ok 3 - unavailable browser storage retains in-memory editing
+  ---
+  duration_ms: 0.175445
+  type: 'test'
+  ...
+# Subtest: clear drafts does not erase unrelated browser storage
+ok 4 - clear drafts does not erase unrelated browser storage
+  ---
+  duration_ms: 0.164638
+  type: 'test'
+  ...
+# Subtest: browser storage retains no more than 50 drafts
+ok 5 - browser storage retains no more than 50 drafts
+  ---
+  duration_ms: 2.467882
+  type: 'test'
+  ...
+# Subtest: normalizes verified metadata without creating a downstream conversation
+ok 6 - normalizes verified metadata without creating a downstream conversation
+  ---
+  duration_ms: 1.561055
+  type: 'test'
+  ...
+# Subtest: missing metadata is optional, unknown schema is not silently accepted
+ok 7 - missing metadata is optional, unknown schema is not silently accepted
+  ---
+  duration_ms: 0.752285
+  type: 'test'
+  ...
+# Subtest: terminal frames must use bounded ANSI/base64 payloads
+ok 8 - terminal frames must use bounded ANSI/base64 payloads
+  ---
+  duration_ms: 0.61624
+  type: 'test'
+  ...
+# Subtest: malformed terminal JSON is rejected
+ok 9 - malformed terminal JSON is rejected
+  ---
+  duration_ms: 0.227213
+  type: 'test'
+  ...
+# Subtest: serves the mobile shell and normalized demo snapshot
+ok 10 - serves the mobile shell and normalized demo snapshot
+  ---
+  duration_ms: 37.827325
+  type: 'test'
+  ...
+# Subtest: does not expose server source, env files, arbitrary paths, or arbitrary module files
+ok 11 - does not expose server source, env files, arbitrary paths, or arbitrary module files
+  ---
+  duration_ms: 14.414601
+  type: 'test'
+  ...
+# Subtest: forbidden Origin cannot read snapshots
+ok 12 - forbidden Origin cannot read snapshots
+  ---
+  duration_ms: 3.509203
+  type: 'test'
+  ...
+# Subtest: missing CSRF protection rejects prompt submissions
+ok 13 - missing CSRF protection rejects prompt submissions
+  ---
+  duration_ms: 8.219087
+  type: 'test'
+  ...
+# Subtest: demo send is explicitly simulated and duplicate-safe
+ok 14 - demo send is explicitly simulated and duplicate-safe
+  ---
+  duration_ms: 13.899304
+  type: 'test'
+  ...
+# Subtest: stale target cannot submit even a demo prompt
+ok 15 - stale target cannot submit even a demo prompt
+  ---
+  duration_ms: 4.816064
+  type: 'test'
+  ...
+# Subtest: real mode always rejects prompt mutation
+ok 16 - real mode always rejects prompt mutation
+  ---
+  duration_ms: 4.821131
+  type: 'test'
+  ...
+# Subtest: transcription requires explicit cloud consent
+ok 17 - transcription requires explicit cloud consent
+  ---
+  duration_ms: 3.676154
+  type: 'test'
+  ...
+# Subtest: security headers prevent caching output and framing
+ok 18 - security headers prevent caching output and framing
+  ---
+  duration_ms: 3.594572
+  type: 'test'
+  ...
+# Subtest: explicit labels win over native and terminal titles
+ok 19 - explicit labels win over native and terminal titles
+  ---
+  duration_ms: 1.044766
+  type: 'test'
+  ...
+# Subtest: normalizes display-only control characters
+ok 20 - normalizes display-only control characters
+  ---
+  duration_ms: 0.116726
+  type: 'test'
+  ...
+# Subtest: missing title has a useful Windows directory fallback
+ok 21 - missing title has a useful Windows directory fallback
+  ---
+  duration_ms: 0.182275
+  type: 'test'
+  ...
+# Subtest: draft keys isolate machines and sessions in the same repository
+ok 22 - draft keys isolate machines and sessions in the same repository
+  ---
+  duration_ms: 0.651873
+  type: 'test'
+  ...
+# Subtest: known native-session drafts survive companion restarts
+ok 23 - known native-session drafts survive companion restarts
+  ---
+  duration_ms: 0.174533
+  type: 'test'
+  ...
+# Subtest: unknown-session drafts are isolated across companion epochs
+ok 24 - unknown-session drafts are isolated across companion epochs
+  ---
+  duration_ms: 0.137488
+  type: 'test'
+  ...
+# Subtest: transcription appends with a matching draft revision
+ok 25 - transcription appends with a matching draft revision
+  ---
+  duration_ms: 0.732876
+  type: 'test'
+  ...
+# Subtest: late transcription cannot overwrite new typing
+ok 26 - late transcription cannot overwrite new typing
+  ---
+  duration_ms: 0.104718
+  type: 'test'
+  ...
+# Subtest: oversized combined transcripts are retained as a conflict, not truncated
+ok 27 - oversized combined transcripts are retained as a conflict, not truncated
+  ---
+  duration_ms: 0.254303
+  type: 'test'
+  ...
+# Subtest: empty transcripts never clear an existing draft
+ok 28 - empty transcripts never clear an existing draft
+  ---
+  duration_ms: 0.335976
+  type: 'test'
+  ...
+# Subtest: target validation checks host, epoch, pane, and native identity
+ok 29 - target validation checks host, epoch, pane, and native identity
+  ---
+  duration_ms: 0.524401
+  type: 'test'
+  ...
+# Subtest: shell panes cannot receive agent prompts
+ok 30 - shell panes cannot receive agent prompts
+  ---
+  duration_ms: 1.011316
+  type: 'test'
+  ...
+# Subtest: valid operation accepts multiline Unicode but rejects oversized/empty input
+ok 31 - valid operation accepts multiline Unicode but rejects oversized/empty input
+  ---
+  duration_ms: 0.269887
+  type: 'test'
+  ...
+# Subtest: stale and disconnected states never count as fresh
+ok 32 - stale and disconnected states never count as fresh
+  ---
+  duration_ms: 0.147182
+  type: 'test'
+  ...
+# Subtest: browser snapshot validation rejects unexpected shapes
+ok 33 - browser snapshot validation rejects unexpected shapes
+  ---
+  duration_ms: 0.151959
+  type: 'test'
+  ...
+# Subtest: concurrent duplicate sends share a single execution
+ok 34 - concurrent duplicate sends share a single execution
+  ---
+  duration_ms: 12.594627
+  type: 'test'
+  ...
+# Subtest: same operation id with different content is rejected
+ok 35 - same operation id with different content is rejected
+  ---
+  duration_ms: 0.968461
+  type: 'test'
+  ...
+# Subtest: failed operations are not automatically replayed
+ok 36 - failed operations are not automatically replayed
+  ---
+  duration_ms: 0.307183
+  type: 'test'
+  ...
+# Subtest: full operation ledger refuses new writes rather than forgetting outcomes
+ok 37 - full operation ledger refuses new writes rather than forgetting outcomes
+  ---
+  duration_ms: 0.43106
+  type: 'test'
+  ...
+# Subtest: default configuration is demo on loopback
+ok 38 - default configuration is demo on loopback
+  ---
+  duration_ms: 1.007179
+  type: 'test'
+  ...
+# Subtest: live write mode does not exist
+ok 39 - live write mode does not exist
+  ---
+  duration_ms: 1.44529
+  type: 'test'
+  ...
+# Subtest: remote origin requires exact tailnet HTTPS and a login allowlist
+ok 40 - remote origin requires exact tailnet HTTPS and a login allowlist
+  ---
+  duration_ms: 0.242576
+  type: 'test'
+  ...
+# Subtest: foreign Host and Origin are rejected even on loopback
+ok 41 - foreign Host and Origin are rejected even on loopback
+  ---
+  duration_ms: 0.346352
+  type: 'test'
+  ...
+# Subtest: all mutations require the exact origin and custom header
+ok 42 - all mutations require the exact origin and custom header
+  ---
+  duration_ms: 0.155013
+  type: 'test'
+  ...
+# Subtest: cross-site browser requests and nonlocal sockets are rejected
+ok 43 - cross-site browser requests and nonlocal sockets are rejected
+  ---
+  duration_ms: 0.185089
+  type: 'test'
+  ...
+# Subtest: Tailscale user header is required and explicitly authorized
+ok 44 - Tailscale user header is required and explicitly authorized
+  ---
+  duration_ms: 0.165941
+  type: 'test'
+  ...
+# Subtest: machine switch destinations exclude arbitrary origins, credentials and paths
+ok 45 - machine switch destinations exclude arbitrary origins, credentials and paths
+  ---
+  duration_ms: 0.403178
+  type: 'test'
+  ...
+# Subtest: voice does not silently work without provider configuration
+ok 46 - voice does not silently work without provider configuration
+  ---
+  duration_ms: 1.558621
+  type: 'test'
+  ...
+# Subtest: audio goes to a fixed endpoint with a host-side key, not prompt history
+ok 47 - audio goes to a fixed endpoint with a host-side key, not prompt history
+  ---
+  duration_ms: 26.782105
+  type: 'test'
+  ...
+# Subtest: unsupported audio never triggers an API call
+ok 48 - unsupported audio never triggers an API call
+  ---
+  duration_ms: 0.259472
+  type: 'test'
+  ...
+# Subtest: provider error bodies do not leak credentials or upstream diagnostics
+ok 49 - provider error bodies do not leak credentials or upstream diagnostics
+  ---
+  duration_ms: 0.413383
+  type: 'test'
+  ...
+1..49
+# tests 49
+# suites 0
+# pass 49
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 268.698076

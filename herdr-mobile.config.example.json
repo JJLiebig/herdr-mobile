@@ -1,0 +1,14 @@
+{
+  "hosts": [
+    {
+      "id": "desktop",
+      "label": "Desktop",
+      "url": "https://desktop.example-tailnet.ts.net"
+    },
+    {
+      "id": "laptop",
+      "label": "Laptop",
+      "url": "https://laptop.example-tailnet.ts.net"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "mode": "Offline Chromium DOM harness; fetch is bridged to the local Node server, storage/history mocked. Not Android or real-origin end-to-end testing.",
+  "results": [
+    {
+      "case": "Overview displays grouped agent cards",
+      "passed": true
+    },
+    {
+      "case": "Focused output and multiline Unicode composer; Enter does not submit",
+      "passed": true
+    },
+    {
+      "case": "Switching panes isolates and restores drafts",
+      "passed": true
+    },
+    {
+      "case": "Demo acknowledgment clears only the submitted draft",
+      "passed": true
+    },
+    {
+      "case": "Last-sent recovery and settings sheet",
+      "passed": true
+    },
+    {
+      "case": "Attention filter shows only blocked agents",
+      "passed": true
+    },
+    {
+      "case": "393px layout without horizontal page overflow or JS errors",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+herdr-mobile.config.json
+artifacts/
+coverage/
+*.log
+*.tgz
+.DS_Store

@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Herdr Mobile",
+  "short_name": "Herdr",
+  "description": "Mobile-first remote for existing agents \u2014 v1 draft",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f6",
+  "theme_color": "#11191f",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

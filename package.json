@@ -1,0 +1,17 @@
+{
+  "name": "herdr-mobile",
+  "version": "0.1.0-draft.1",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-first remote for existing Herdr agents. Initial draft; live control gated.",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "probe:windows": "node --env-file-if-exists=.env scripts/probe-herdr.mjs"
+  },
+  "license": "UNLICENSED"
+}
