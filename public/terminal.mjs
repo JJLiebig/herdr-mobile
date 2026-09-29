@@ -45,7 +45,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
   let terminal,observer,resizeTimer,viewportId,lastSize,unbindScroll;
   let pendingScroll=0,pendingPosition=null,scrolling=false;
   let cancelled=false,sequence=-1,firstFrameReady=false,pending=0,resizing=false;
-  let composing=false,compositionEpoch=0,pendingKeys=[];
+  let composing=false,compositionEpoch=0;
   const abort=new AbortController(),disposables=[];
   const close=()=>{if(cancelled)return;cancelled=true;abort.abort();clearTimeout(resizeTimer);unbindScroll?.();observer?.disconnect();for(const d of disposables)d.dispose();terminal?.dispose();};
   const fail=error=>{if(cancelled)return;close();onStatus(error.message||'Disconnected. Reopen the pane.');};
@@ -61,7 +61,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
       if(!response.ok)throw new Error('Input failed. Check the terminal before continuing.');
     }).catch(()=>{inputFailed=true;fail(new Error('Input interrupted. Reopen the thread and check what arrived. Nothing was retried.'));}).finally(()=>{queuedInput-=text.length;});
   }
-  function key(text){if(composing)pendingKeys.push(text);else input(text);}
+  function key(text){if(composing)return false;input(text);return true;}
   async function scroll(lines,point){
     if(cancelled||!viewportId)return;
     const rect=element.querySelector('.xterm-screen').getBoundingClientRect();
@@ -128,7 +128,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     const textarea=terminal.textarea;
     if(!textarea)throw new Error('Terminal input is unavailable. Reopen the pane.');
     const compositionStart=()=>{compositionEpoch++;composing=true;};
-    const compositionEnd=()=>{const epoch=compositionEpoch;setTimeout(()=>{if(cancelled||epoch!==compositionEpoch)return;composing=false;for(const text of pendingKeys.splice(0))input(text);},0);};
+    const compositionEnd=()=>{const epoch=compositionEpoch;setTimeout(()=>{if(!cancelled&&epoch===compositionEpoch)composing=false;},0);};
     textarea.addEventListener('compositionstart',compositionStart);
     textarea.addEventListener('compositionend',compositionEnd);
     disposables.push({dispose(){textarea.removeEventListener('compositionstart',compositionStart);textarea.removeEventListener('compositionend',compositionEnd);}});

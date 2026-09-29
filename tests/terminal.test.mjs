@@ -62,11 +62,13 @@ test('viewport streams fit the content box, resize the same lease, and reject a 
   inputGate.resolve({ok:true});await tick();
   assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r']);
   terminals[0].textarea.listeners.get('compositionstart')();
-  first.key('\r');
+  assert.equal(first.key('\r'),false);
   assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r']);
   setTimeout(()=>terminals[0].data('composed'),0); // xterm forwards composition text after the compositionend event.
   terminals[0].textarea.listeners.get('compositionend')();
   await new Promise(resolve=>setTimeout(resolve,10));await tick();
+  assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text).slice(-1),['composed']);
+  assert.equal(first.key('\r'),true);await tick();
   assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text).slice(-2),['composed','\r']);
   inputGate=Promise.withResolvers();terminals[0].data('uncertain');terminals[0].data('queued');await tick();
   inputGate.reject(new Error('lost response'));await tick();

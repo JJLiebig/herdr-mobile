@@ -85,6 +85,7 @@ xterm's native input; its onData stream forwards characters, IME input, paste, a
 Herdr controller. The local renderer enables bracketed paste so Herdr receives clipboard text as one paste
 and applies the attached runtime's paste mode. Enter behaves exactly as in the TUI. No prompt emulation,
 submission delay, or separate Send flow is used. Voice UI is deferred.
+Toolbar key taps during IME composition ask the user to finish composing and tap again; no key is queued for later.
 
 The first full frame is required before input. Each request captures the original controller lease;
 leaving the view invalidates it. The browser serializes input so network timing cannot reorder keys.
