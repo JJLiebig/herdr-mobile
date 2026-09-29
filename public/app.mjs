@@ -5,7 +5,7 @@ import { DraftStore } from './drafts.mjs';
 new DraftStore(); // Prune drafts left by the former composer on each app load.
 const $=id=>document.getElementById(id);
 const focusUI=setupFocus(document,window);
-let snapshot=null,active=null,landingTab='priority',outputGeneration=0,outputAbort=null,terminalView=null,loadingSnapshot=false,overviewPosition=0,lastLandingSignature='',lastInteraction=0,treeInitialized=false;
+let snapshot=null,active=null,outputGeneration=0,outputAbort=null,terminalView=null,loadingSnapshot=false,overviewPosition=0,lastLandingSignature='',lastInteraction=0,treeInitialized=false;
 const openSpaces=new Set(),openTabs=new Set();
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const targetFor=(s,p)=>({hostId:s.host.id,epoch:s.epoch,terminalId:p.terminalId,paneId:p.paneId,sessionId:p.sessionId||''});
@@ -83,7 +83,6 @@ function renderLanding(force=false){
   $('spaces-tree').replaceChildren(tree);
 }
 function showLandingTab(which){
-  landingTab=which;
   for(const name of ['priority','spaces']){
     const selected=name===which,tab=$(name+'-tab');tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;
     $(name+'-panel').hidden=!selected;

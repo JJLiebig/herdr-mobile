@@ -1,6 +1,0 @@
-import test from'node:test';import assert from'node:assert/strict';import{OperationLedger}from'../server/operations.mjs';
-const op={id:'operation-123',target:{terminalId:'one'},text:'Test'};
-test('concurrent duplicate sends share a single execution',async()=>{const ledger=new OperationLedger();let count=0;const send=()=>ledger.execute(op,async()=>{count++;await new Promise(r=>setTimeout(r,10));return{status:'simulated'};});const [a,b]=await Promise.all([send(),send()]);assert.equal(count,1);assert.deepEqual(a,b);});
-test('same operation id with different content is rejected',async()=>{const ledger=new OperationLedger();await ledger.execute(op,async()=>({}));await assert.rejects(ledger.execute({...op,text:'different'},async()=>({})),/operation_id_conflict/);});
-test('failed operations are not automatically replayed',async()=>{const ledger=new OperationLedger();let count=0;const send=()=>ledger.execute(op,async()=>{count++;throw new Error('outcome unknown');});await assert.rejects(send());await assert.rejects(send());assert.equal(count,1);});
-test('full operation ledger refuses new writes rather than forgetting outcomes',async()=>{const ledger=new OperationLedger(1);await ledger.execute(op,async()=>({}));await assert.rejects(ledger.execute({...op,id:'another-operation'},async()=>({})),/operation_ledger_full/);});

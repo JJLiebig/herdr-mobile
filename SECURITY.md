@@ -28,8 +28,8 @@ companion. Browser recordings are capped at three minutes. Keys stay on the host
 terminal output, or upstream errors are logged or deliberately persisted server-side. Cloud provider
 retention is governed by that provider/account, not this application; do not claim zero provider retention.
 
-Draft text, pending transcripts and last-sent copies expire after seven days, with at most 50 stored entries.
-Expired entries are deleted when the app next loads or saves; a closed browser cannot run cleanup.
+Draft text, pending transcripts and last-sent copies from the former composer expire after seven days, with at most 50 stored entries.
+Expired entries are deleted when the app next loads; a closed browser cannot run cleanup.
 This is not encrypted application storage. Audio is not stored there.
 On shared devices, clear the browser's site data to remove saved drafts immediately. There is no offline service-worker cache in this draft.
 

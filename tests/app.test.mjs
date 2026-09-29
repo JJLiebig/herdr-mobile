@@ -15,23 +15,22 @@ class Element {
   addEventListener(name,fn){this.listeners[name]=fn;}replaceChildren(...nodes){this.children=nodes;}append(...nodes){this.children.push(...nodes);}setAttribute(){}
 }
 async function app(saved=[]){
-  const nodes=new Map(),handlers={},streams=[],memory=new Map(saved);let failed=false,sendFails=false;
+  const nodes=new Map(),handlers={},streams=[],memory=new Map(saved);let failed=false;
   const storage={get length(){return memory.size;},key:i=>[...memory.keys()][i],getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)};
   const snapshot={schemaVersion:1,epoch:'epoch',host:{id:'host',label:'Host'},mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{voice:false},panes:[{terminalId:'terminal',paneId:'pane',sessionId:'session',title:'Agent',space:'Space',tab:'Tab',agent:'codex',status:'idle'}]};
   const context=vm.createContext({...model,AbortSignal,URLSearchParams,crypto,setupFocus,
-    DraftStore:class extends DraftStore{constructor(){super(storage);}},VoiceRecorder:class{},
+    DraftStore:class extends DraftStore{constructor(){super(storage);}},
     openTerminal:async(element,snapshot,pane,onStatus)=>{const view={pane:{...pane},viewportId:'attached-lease',closed:false,ready:Promise.resolve(),status:onStatus,focus(){this.focused=true;},blur(){this.focused=false;},input(text){this.lastInput=text;},close(){this.closed=true;this.viewportId=null;}};streams.push(view);return view;},
     document:{hidden:false,body:new Element(),getElementById(id){if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);},createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelectorAll:()=>[],addEventListener(name,fn){handlers[name]=fn;}},
     window:{innerHeight:800,scrollY:0,scrollTo(){},addEventListener(name,fn){handlers[name]=fn;}},history:{pushState(){},replaceState(){}},location:{pathname:'/'},setInterval(){},
     fetch:async(url,options)=>{if(failed)throw new Error('network lost');
-      if(url==='/api/prompt'){if(sendFails)throw new Error('response lost');const op=JSON.parse(options.body);if(snapshot.mode!=='demo')assert.equal(op.viewportId,'attached-lease');return{ok:true,json:async()=>({id:op.id,status:snapshot.mode==='demo'?'simulated':'forwarded',submittedToAgent:false,message:''})};}
       if(url.startsWith('/api/output'))return{ok:true,json:async()=>({text:'Demo output'})};
       return{ok:true,json:async()=>({...snapshot,observedAt:Date.now()})};}
   });
   vm.runInContext(source,context);await new Promise(setImmediate);
   const run=async code=>{await vm.runInContext(code,context);await new Promise(setImmediate);};
   await run('showPane(snapshot.panes[0])');
-  return{run,streams,snapshot,nodes,handlers,context,memory,fail(value){failed=value;},failSend(value){sendFails=value;}};
+  return{run,streams,snapshot,nodes,handlers,context,memory,fail(value){failed=value;}};
 }
 test('a closed controller stays closed until the user explicitly reopens the pane',async()=>{
   const a=await app();
