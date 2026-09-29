@@ -3,7 +3,7 @@ export const MAX_DRAFT = 16000;
 export const MAX_AUDIO = 8 * 1024 * 1024;
 export const MAX_RECORDING_MS = 180000;
 export const STALE_AFTER_MS = 15000;
-export const STATUS_LABELS = Object.freeze({ working: 'Working', blocked: 'Needs input', idle: 'Ready', done: 'Ready · new output', unknown: 'Unknown' });
+export const STATUS_LABELS = Object.freeze({ working: 'Working', blocked: 'Needs input', idle: 'Idle', done: 'Finished', unknown: 'Unknown' });
 export function cleanText(value, limit = 160) {
   return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit) : '';
 }

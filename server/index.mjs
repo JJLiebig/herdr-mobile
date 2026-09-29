@@ -1,9 +1,10 @@
 import { readConfig } from './security.mjs';
 import { createApp } from './app.mjs';
+import { listeningAddresses } from './listening.mjs';
 try {
   const cfg=readConfig();const {server}=await createApp(cfg);
   server.listen(cfg.port,cfg.bind,()=>{
-    console.log(`Herdr Mobile draft · ${cfg.mode}\nOpen ${cfg.origin}\nLive control is not implemented. ${cfg.apiKey?'Voice uses the configured OpenAI API key.':'Voice provider not configured; keyboard dictation still works.'}`);
+    console.log(`Herdr Mobile\nListening on port ${cfg.port}:\n  ${listeningAddresses(cfg.bind).join('\n  ')}\nOpen:\n  ${[cfg.origin,...cfg.extraOrigins].join('\n  ')}${cfg.mode==='demo'?'\nDemo preview':''}`);
   });
   server.on('error',()=>{console.error('Could not start companion. Check the configured port.');process.exitCode=1;});
   let shuttingDown=false;

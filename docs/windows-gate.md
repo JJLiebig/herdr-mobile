@@ -1,10 +1,12 @@
 # Native Windows acceptance gate
 
-**No live prompt/key input may be enabled until this is proved on the actual Windows desktop and laptop builds.**
+**Historical acceptance matrix; the owner now requests standard Herdr terminal input.**
+The desktop implementation uses the attached controller, with mocked transport and failure tests. Real
+Android text/IME acceptance and second-host validation remain pending; they are not claimed as passed.
 Use an isolated existing test session, not valuable active production work. The read-only probe does not create one.
 
 The owner separately approved standard Herdr attach/resume and shared terminal sizing. Viewport control is
-implemented and tested on the desktop; it does not enable prompts or raw keys. This supersedes the original
+implemented and tested on the desktop. Direct keyboard input now shares that controller. This supersedes the original
 non-resizing/no-resume assumption for an explicitly opened pane.
 
 ## 1. Capture exact identity and supported interfaces
@@ -24,13 +26,13 @@ phone views must not focus, resize, zoom or rearrange the desktop. Disconnecting
 Test process exit, missing executable, mismatched protocol, invalid/truncated JSON, renderer backpressure, network
 loss, desktop focus changes, and resubscription. A fresh observer must start with a full frame before deltas apply.
 
-## 3. Implement and prove control (not present in this draft)
+## 3. Historical stronger agent-level control proposal
 
 Use the documented JSON terminal controller rather than the full Herdr TUI or ordinary direct attach.
 Take control explicitly, expose ownership and takeover, and release on disconnect/background. Do not auto-takeover.
 Independent mobile/desktop PTY dimensions must not be promised; document and test actual shared sizing behavior.
 
-Prompts should go through agent.prompt semantics; dialog keys are separate. Preserve half-written desktop input.
+The original proposal called for agent.prompt semantics; dialog keys remain separate. Preserve half-written desktop input.
 Prove occupant identity is pinned AT the authoritative write, not merely in a preceding snapshot. If the current API
 cannot provide this, add a narrowly scoped upstream guarded operation instead of claiming the race is fixed.
 

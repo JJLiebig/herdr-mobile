@@ -18,14 +18,65 @@ export function terminalSize(element, terminal){
   const height=element.clientHeight-parseFloat(style.paddingTop||0)-parseFloat(style.paddingBottom||0);
   return {cols:Math.max(1,Math.min(1000,Math.floor(width/cellWidth))),rows:Math.max(1,Math.min(500,Math.floor(height/cellHeight)))};
 }
-/** Standard Herdr control owns sizing only. No keystrokes are sent. */
+/** Forward scrolling to the host, since streamed frames contain no local history. */
+export function bindTerminalScroll(element,scroll,lineHeight){
+  let touchY=null,touchPoint=null,remainder=0;
+  const start=event=>{touchPoint=event.touches.length===1?event.touches[0]:null;touchY=touchPoint?.clientY??null;remainder=0;};
+  const move=event=>{
+    if(touchY===null||event.touches.length!==1)return;
+    event.preventDefault();event.stopPropagation();
+    const y=event.touches[0].clientY;remainder+=touchY-y;touchY=y;
+    const lines=Math.trunc(remainder/lineHeight());
+    if(lines){remainder-=lines*lineHeight();scroll(lines,touchPoint);}
+  };
+  const end=()=>{touchY=null;touchPoint=null;remainder=0;};
+  const wheel=event=>{
+    if(event.ctrlKey||!event.deltaY)return;
+    event.preventDefault();event.stopPropagation();
+    const pixels=event.deltaY*(event.deltaMode===1?lineHeight():event.deltaMode===2?element.clientHeight:1);
+    scroll(Math.sign(pixels)*Math.max(1,Math.round(Math.abs(pixels)/lineHeight())),event);
+  };
+  const events=[['touchstart',start],['touchmove',move],['touchend',end],['touchcancel',end],['wheel',wheel]];
+  for(const [name,handler]of events)element.addEventListener(name,handler,{capture:true,passive:false});
+  return ()=>{for(const [name,handler]of events)element.removeEventListener(name,handler,true);};
+}
+/** One native controller owns this view's dimensions, scrolling, and keyboard input. */
 export async function openTerminal(element,snapshot,pane,onStatus){
-  let terminal,observer,resizeTimer,viewportId,lastSize;
+  let terminal,observer,resizeTimer,viewportId,lastSize,unbindScroll;
+  let pendingScroll=0,pendingPosition=null,scrolling=false;
   let cancelled=false,sequence=-1,pending=0,resizing=false;
   const abort=new AbortController(),disposables=[];
-  const close=()=>{if(cancelled)return;cancelled=true;abort.abort();clearTimeout(resizeTimer);observer?.disconnect();for(const d of disposables)d.dispose();terminal?.dispose();};
-  const fail=error=>{if(cancelled)return;onStatus(error.message||'Disconnected. Reopen the pane.');close();};
+  const close=()=>{if(cancelled)return;cancelled=true;abort.abort();clearTimeout(resizeTimer);unbindScroll?.();observer?.disconnect();for(const d of disposables)d.dispose();terminal?.dispose();};
+  const fail=error=>{if(cancelled)return;close();onStatus(error.message||'Disconnected. Reopen the pane.');};
   const headers={'Content-Type':'application/json','X-Herdr-Mobile':'1'};
+  let inputQueue=Promise.resolve(),queuedInput=0,inputFailed=false;
+  function input(text){
+    if(cancelled||!viewportId||sequence<0||!text)return;
+    if(queuedInput+text.length>16000){inputFailed=true;fail(new Error('Too much pending input. Reopen the thread and check the terminal.'));return;}
+    const id=viewportId;queuedInput+=text.length;
+    inputQueue=inputQueue.then(async()=>{
+      if(cancelled)return;
+      const response=await fetch('/api/input',{method:'POST',headers,body:JSON.stringify({id,text}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(10000)])});
+      if(!response.ok)throw new Error('Input failed. Check the terminal before continuing.');
+    }).catch(()=>{inputFailed=true;fail(new Error('Input interrupted. Reopen the thread and check what arrived. Nothing was retried.'));}).finally(()=>{queuedInput-=text.length;});
+  }
+  async function scroll(lines,point){
+    if(cancelled||!viewportId)return;
+    const rect=element.querySelector('.xterm-screen').getBoundingClientRect();
+    const column=Math.max(0,Math.min(terminal.cols-1,Math.floor(((point?.clientX??rect.left+rect.width/2)-rect.left)*terminal.cols/rect.width)));
+    const row=Math.max(0,Math.min(terminal.rows-1,Math.floor(((point?.clientY??rect.top+rect.height/3)-rect.top)*terminal.rows/rect.height)));
+    pendingPosition={column,row};
+    pendingScroll=Math.max(-65535,Math.min(65535,pendingScroll+lines));
+    if(scrolling)return;scrolling=true;
+    try{
+      while(pendingScroll&&!cancelled){
+        const amount=pendingScroll,position=pendingPosition;pendingScroll=0;
+        const response=await fetch('/api/scroll',{method:'POST',headers,body:JSON.stringify({id:viewportId,direction:amount<0?'up':'down',lines:Math.abs(amount),...position}),signal:abort.signal});
+        if(!response.ok)throw new Error('Scroll failed. Reopen the pane.');
+      }
+    }catch(error){pendingScroll=0;fail(error);}
+    finally{scrolling=false;}
+  }
   async function resize(){
     if(cancelled||!viewportId||resizing)return;
     const size=terminalSize(element,terminal);
@@ -47,9 +98,8 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     sequence=f.seq;
     const bytes=Uint8Array.from(atob(f.bytes),c=>c.charCodeAt(0));pending+=bytes.length;
     if(pending>2*1024*1024)throw new Error('Output exceeded the mobile render buffer. Reopen the pane.');
-    if(f.full)terminal.reset();
     if(terminal.cols!==f.width||terminal.rows!==f.height)terminal.resize(f.width,f.height);
-    terminal.write(bytes,()=>{pending-=bytes.length;});onStatus('Live · phone size');
+    terminal.write(bytes,()=>{pending-=bytes.length;terminal.options.disableStdin=false;});onStatus('');
   }
   async function readFrames(body){
     const reader=body.getReader(),decoder=new TextDecoder();let buffer='';
@@ -69,16 +119,18 @@ export async function openTerminal(element,snapshot,pane,onStatus){
   }
   const ready=(async()=>{
     await loadXterm();if(cancelled)return;
-    terminal=new globalThis.Terminal({disableStdin:true,cursorBlink:false,fontSize:14,fontFamily:'ui-monospace, Consolas, monospace',scrollback:1500,allowProposedApi:false,convertEol:false,theme:{background:'#11191f',foreground:'#e9eef0'}});
+    terminal=new globalThis.Terminal({disableStdin:true,cursorBlink:false,fontSize:12,fontFamily:'ui-monospace, Consolas, monospace',scrollback:0,allowProposedApi:false,convertEol:false,theme:{background:'#11191f',foreground:'#e9eef0'}});
     terminal.open(element);
+    disposables.push(terminal.onData(input));
     for(const code of [0,1,2,7,8,9,52,1337])disposables.push(terminal.parser.registerOscHandler(code,()=>true));
     lastSize=terminalSize(element,terminal);terminal.resize(lastSize.cols,lastSize.rows);
     const query=new URLSearchParams({terminal:pane.terminalId,pane:pane.paneId,session:pane.sessionId||'',epoch:snapshot.epoch});
     const response=await fetch('/api/terminal?'+query,{method:'POST',headers,body:JSON.stringify(lastSize),signal:abort.signal});
     if(!response.ok){const data=await response.json();throw new Error(data.message||'Terminal unavailable.');}
     if(cancelled)return;
+    unbindScroll=bindTerminalScroll(element,scroll,()=>element.querySelector('.xterm-screen').getBoundingClientRect().height/terminal.rows);
     observer=new ResizeObserver(queueResize);observer.observe(element);
     readFrames(response.body).catch(fail);
   })();
-  return {ready,close,get closed(){return cancelled;},latest:()=>terminal?.scrollToBottom()};
+  return {ready,close,input,focus:()=>{if(!cancelled&&sequence>=0)terminal.focus();},blur:()=>terminal?.blur(),get inputFailed(){return inputFailed;},get closed(){return cancelled;},get viewportId(){return !cancelled&&sequence>=0?viewportId:null;},latest:()=>scroll(65535)};
 }

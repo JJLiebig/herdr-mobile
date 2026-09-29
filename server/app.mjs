@@ -4,10 +4,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { authorize, commonHeaders, readBody, HttpError, validateHosts } from './security.mjs';
-import { validOperation, guardTarget, MAX_AUDIO } from '../shared/model.mjs';
+import { MAX_AUDIO } from '../shared/model.mjs';
 import { HerdrReadonly } from './herdr.mjs';
 import { demoSnapshot, demoOutput } from './demo.mjs';
-import { OperationLedger } from './operations.mjs';
 import { TranscriptionService } from './transcription.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const staticFiles=new Map([
@@ -18,7 +17,7 @@ const staticFiles=new Map([
 ]);
 function json(res,status,value){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(value));}
 export async function createApp(cfg, options={}) {
-  const epoch=options.epoch || randomUUID();const ledger=new OperationLedger();
+  const epoch=options.epoch || randomUUID();
   const viewports=new Map();
   const validSize=({cols,rows})=>Number.isInteger(cols)&&cols>=1&&cols<=1000&&Number.isInteger(rows)&&rows>=1&&rows<=500;
   const herdr=options.herdr || (cfg.mode==='herdr-readonly'?new HerdrReadonly(cfg,epoch):null);
@@ -42,8 +41,14 @@ export async function createApp(cfg, options={}) {
       if(req.method==='POST' && path==='/api/viewport'){
         let body;try{body=JSON.parse((await readBody(req,4096)).toString('utf8'));}catch{throw new HttpError(400,'invalid_viewport');}
         if(!body||!validSize(body))throw new HttpError(400,'invalid_viewport','Viewport cols must be 1–1000 and rows 1–500.');
-        const resize=viewports.get(body.id);if(!resize)throw new HttpError(409,'viewport_closed');
-        resize(body);json(res,200,{status:'resized'});return;
+        const controller=viewports.get(body.id);if(!controller)throw new HttpError(409,'viewport_closed');
+        controller.resize(body);json(res,200,{status:'resized'});return;
+      }
+      if(req.method==='POST' && path==='/api/scroll'){
+        let body;try{body=JSON.parse((await readBody(req,4096)).toString('utf8'));}catch{throw new HttpError(400,'invalid_scroll');}
+        if(!body||!['up','down'].includes(body.direction)||!Number.isInteger(body.lines)||body.lines<1||body.lines>65535||!Number.isInteger(body.column)||body.column<0||body.column>999||!Number.isInteger(body.row)||body.row<0||body.row>499)throw new HttpError(400,'invalid_scroll');
+        const controller=viewports.get(body.id);if(!controller)throw new HttpError(409,'viewport_closed');
+        controller.scroll(body);json(res,200,{status:'scrolled'});return;
       }
       if((req.method==='GET'||req.method==='POST') && path==='/api/terminal'){
         if(cfg.mode!=='herdr-readonly')throw new HttpError(404,'read_only_observer_unavailable');
@@ -60,19 +65,16 @@ export async function createApp(cfg, options={}) {
         let finished=false;let stop=()=>{};let heartbeat;const viewportId=geometry?randomUUID():null;
         const end=reason=>{if(finished)return;finished=true;viewports.delete(viewportId);clearInterval(heartbeat);if(!res.destroyed){res.write(`event: closed\ndata: ${JSON.stringify({reason})}\n\n`);res.end();}};
         stop=herdr.observe(pane,frame=>{if(finished)return;if(res.writableLength>2*1024*1024){end('slow_client_reconnect_required');stop();return;}res.write(`data: ${JSON.stringify(frame)}\n\n`);},end,geometry);
-        if(geometry){viewports.set(viewportId,stop.resize);res.write(`event: viewport\ndata: ${JSON.stringify({id:viewportId})}\n\n`);}
+        if(geometry){viewports.set(viewportId,stop);res.write(`event: viewport\ndata: ${JSON.stringify({id:viewportId})}\n\n`);}
         heartbeat=setInterval(()=>{if(!finished)res.write(': heartbeat\n\n');},15000);
         res.on('close',()=>{finished=true;viewports.delete(viewportId);clearInterval(heartbeat);stop();});return;
       }
-      if(req.method==='POST' && path==='/api/prompt'){
-        // No env flag, hidden endpoint, or shell fallback can bypass this gate.
-        if(cfg.mode!=='demo')throw new HttpError(501,'live_control_not_implemented','Live input is gated on the Windows transport and identity-safety tests.');
+      if(req.method==='POST' && path==='/api/input'){
         if(req.headers['content-type']!=='application/json')throw new HttpError(415,'json_required');
-        let op;try{op=JSON.parse((await readBody(req,100000)).toString('utf8'));}catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'invalid_json');}
-        if(!validOperation(op))throw new HttpError(400,'invalid_operation');
-        try{guardTarget(await snapshot(),op.target);}catch{throw new HttpError(409,'stale_target');}
-        const result=await ledger.execute(op,async()=>({id:op.id,status:'simulated',submittedToAgent:false,message:'Demo only. Nothing was sent to Herdr.'}));
-        json(res,200,result);return;
+        let body;try{body=JSON.parse((await readBody(req,100000)).toString('utf8'));}catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'invalid_json');}
+        if(!body||typeof body.text!=='string'||!body.text.length||body.text.length>16000)throw new HttpError(400,'invalid_input');
+        const controller=viewports.get(body.id);if(!controller)throw new HttpError(409,'viewport_closed');
+        await controller.input(body.text);json(res,200,{status:'forwarded'});return;
       }
       if(req.method==='POST' && path==='/api/transcribe'){
         if(req.headers['x-audio-consent']!=='openai')throw new HttpError(400,'voice_consent_required');

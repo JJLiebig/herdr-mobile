@@ -9,9 +9,9 @@ Overview: machine selector, Space groups, flat cards, Tab breadcrumb. Cards cont
 kind, lifecycle state, existing display-summary metadata and freshness. No terminal thumbnails or thread
 history. Attention is visible without constantly reshuffling a card under the user's finger.
 
-Focus: one full-width output surface, visible machine/agent identity, and a normal multiline textarea.
-Enter means newline. Send is an explicit action. Raw keys belong to a deliberate terminal-control mode,
-not to the composer. The first draft disables raw keys and simulates sends only in clearly marked demo mode.
+Focus: one full-width terminal. The floating keyboard button focuses its native input. Typing and Enter
+act directly in the TUI, with optional Esc/arrow/Enter buttons for keys missing from phone keyboards.
+There is no separate message composer or Send button. Voice input is deferred.
 
 ## Metadata
 

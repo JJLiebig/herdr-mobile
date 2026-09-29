@@ -18,9 +18,11 @@ export function normalizeSnapshot(raw, cfg, epoch) {
     const space=workspace.get(a.workspace_id),tab=tabs.get(a.tab_id);
     const spaceLabel=cleanText(space?.label)||cleanText(space?.name);
     const repo=cleanText(space?.worktree?.repo_name);
-    return {terminalId:a.terminal_id,paneId:a.pane_id,sessionId:typeof a.agent_session?.value==='string'?a.agent_session.value:'',agent:cleanText(a.agent,60),title:titleFor(a),spaceId:a.workspace_id,tabId:a.tab_id,spaceLabel,repo,space:spaceLabel||repo||cleanText(a.workspace_id)||'Space',tab:cleanText(tab?.label)||cleanText(tab?.name)||cleanText(a.tab_id)||'Tab',status:statuses.has(a.agent_status)?a.agent_status:'unknown',summary:cleanText(a.tokens?.summary),summarySource:a.tokens?.summary?'Herdr display metadata':'',observedAt:Date.now()};
+    // Herdr's done/idle distinction tracks whether output was seen, not whether work finished.
+    const status=a.agent_status==='idle'&&Number.isSafeInteger(a.completion_seq)&&a.completion_seq>0?'done':a.agent_status;
+    return {terminalId:a.terminal_id,paneId:a.pane_id,sessionId:typeof a.agent_session?.value==='string'?a.agent_session.value:'',agent:cleanText(a.agent,60),title:titleFor(a),spaceId:a.workspace_id,tabId:a.tab_id,spaceLabel,repo,space:spaceLabel||repo||cleanText(a.workspace_id)||'Space',tab:cleanText(tab?.label)||cleanText(tab?.name)||cleanText(a.tab_id)||'Tab',status:statuses.has(status)?status:'unknown',completionSeq:Number.isSafeInteger(a.completion_seq)?a.completion_seq:0,stateChangeSeq:Number.isSafeInteger(a.state_change_seq)?a.state_change_seq:0,summary:cleanText(a.tokens?.summary),summarySource:a.tokens?.summary?'Herdr display metadata':'',observedAt:Date.now()};
   });
-  return {schemaVersion:1,host:{id:cfg.hostId,label:cfg.hostLabel},epoch,mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{liveWrites:false,terminalObserve:true,voice:!!cfg.apiKey},herdrVersion:s.version,herdrProtocol:s.protocol,panes};
+  return {schemaVersion:1,host:{id:cfg.hostId,label:cfg.hostLabel},epoch,mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{liveWrites:true,terminalObserve:true,voice:!!cfg.apiKey},herdrVersion:s.version,herdrProtocol:s.protocol,panes};
 }
 export function frameFromLine(line) {
   let frame; try { frame=JSON.parse(line); } catch { throw new Error('invalid_terminal_json'); }
@@ -71,7 +73,20 @@ export class HerdrReadonly {
     child.on('error',()=>stop('observer_start_failed'));
     child.on('exit',()=>stop('observer_exited'));
     const release=()=>stop('released');
+    release.input=text=>new Promise((resolve,reject)=>{
+      if(ended||!geometry||!sawFull){reject(new HttpError(409,'terminal_not_ready'));return;}
+      child.stdin.write(JSON.stringify({type:'terminal.input',text})+'\n',error=>error?reject(new HttpError(503,'delivery_unknown')):resolve());
+    });
     release.resize=({cols,rows})=>{if(ended||!geometry)throw new HttpError(409,'viewport_closed');child.stdin.write(JSON.stringify({type:'terminal.resize',cols,rows})+'\n');};
+    release.scroll=({direction,lines,column,row})=>{
+      if(ended||!geometry)throw new HttpError(409,'viewport_closed');
+      // Herdr uses lines for host history but emits one wheel report in app mouse mode.
+      const count=Math.min(24,Math.ceil(lines/3));
+      for(let remaining=lines,left=count;left;left--){
+        const chunk=Math.ceil(remaining/left);remaining-=chunk;
+        child.stdin.write(JSON.stringify({type:'terminal.scroll',source:'wheel',direction,lines:chunk,column,row})+'\n');
+      }
+    };
     return release;
   }
   close(){for(const child of this.children)child.kill();this.children.clear();}

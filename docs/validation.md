@@ -56,8 +56,21 @@ its fixtures and outputs are local. It writes new evidence to ignored `artifacts
 The live-input acceptance gate remains open. Passing the local suite does not make this a live-control release.
 # Mobile viewport follow-up — 2026-09-28
 
+Scroll follow-up: 57 tests pass. A simulated touch swipe in real Chrome reached `/api/scroll` with HTTP 200 on the native controller. The terminal's scroll height equals its visible height (804px at a 393x852 viewport); bottom padding is 22px instead of 70px. Physical Android touch acceptance remains with the user.
+
 - Integrated approved Priority/Spaces landing and fullscreen thread controls; landing Review Suite fast completed after verified fixes.
 - 56 Node tests pass, including measured terminal geometry, same-controller resize, lease invalidation on disconnect, CSRF enforcement and unknown-send draft retention.
 - Actual native Windows controller on this agent's existing pane produced an initial full 44x35 frame and a subsequent 62x24 frame, then released. No keystrokes or prompts were sent.
 - Actual Chrome: 393px phone viewport rendered a 362px terminal surface; opening the composer and reducing viewport height resized the terminal height. Landscape 852px rendered an 816px terminal surface. Back released control.
 - Physical Android keyboard/rotation acceptance remains with the user. Desktop size restoration follows Herdr's active geometry owner; no independent mobile PTY is claimed.
+
+### Direct keyboard and Codex scrolling — 2026-09-28
+
+The separate composer is removed. Tests cover ordered raw Unicode/key forwarding on the original
+controller, rejecting released leases, full-frame readiness, and dropping queued input after a failed
+response without retry. These transport tests use a mocked native child, not an Android keyboard.
+
+Live native Herdr + Chrome at 393×700: a 90px downward touch swipe sent cell coordinates (22,14),
+received HTTP 200, and visibly moved Codex's transcript to show its Back to bottom control. The previous
+(0,0) wheel position lay outside that TUI's transcript. The browser was returned to overview afterward.
+Actual Android keyboard and gesture acceptance remains for the user; no agent prompt was submitted.

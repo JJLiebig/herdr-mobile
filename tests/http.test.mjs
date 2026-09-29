@@ -38,12 +38,32 @@ test('LAN and primary addresses both work while cross-origin requests between th
   const response=await send('/api/snapshot');assert.equal(response.status,200);
   const s=response.data;const p=s.panes[0];
   const body=JSON.stringify({id:'lan-operation-123',target:{hostId:s.host.id,epoch:s.epoch,terminalId:p.terminalId,paneId:p.paneId,sessionId:p.sessionId},text:'LAN demo'});
-  assert.equal((await send('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json','X-Herdr-Mobile':'1'},body})).status,200);
+  assert.equal((await send('/api/input',{method:'POST',headers:{'Content-Type':'application/json','X-Herdr-Mobile':'1'},body:JSON.stringify({id:'closed',text:'x'})})).status,409);
   assert.equal((await send('/api/snapshot',{headers:{Origin:cfg.origin}})).status,403);
 },{extraOrigins:['http://192.168.178.24:8787']}));
-test('missing CSRF protection rejects prompt submissions',()=>withApp(async request=>assert.equal((await request('/api/prompt',{method:'POST',body:'{}'})).status,403)));
-test('demo send is explicitly simulated and duplicate-safe',()=>withApp(async(request,cfg)=>{const s=await(await request('/api/snapshot')).json();const p=s.panes[0];const op={id:'http-operation-123',target:{hostId:s.host.id,epoch:s.epoch,terminalId:p.terminalId,paneId:p.paneId,sessionId:p.sessionId},text:'Hallo\n🦊'};const send=()=>request('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json',Origin:cfg.origin,'X-Herdr-Mobile':'1'},body:JSON.stringify(op)});const a=await(await send()).json();const b=await(await send()).json();assert.deepEqual(a,b);assert.equal(a.status,'simulated');assert.equal(a.submittedToAgent,false);}));
-test('stale target cannot submit even a demo prompt',()=>withApp(async(request,cfg)=>{const response=await request('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json',Origin:cfg.origin,'X-Herdr-Mobile':'1'},body:JSON.stringify({id:'stale-operation',text:'Do it',target:{epoch:'old'}})});assert.equal(response.status,409);}));
-test('real mode always rejects prompt mutation',()=>withApp(async(request,cfg)=>{const response=await request('/api/prompt',{method:'POST',headers:{Origin:cfg.origin,'X-Herdr-Mobile':'1'},body:'{}'});assert.equal(response.status,501);assert.equal((await response.json()).error,'live_control_not_implemented');},{mode:'herdr-readonly',options:{herdr:{snapshot(){throw new Error('must not be called');},close(){}}}}));
+test('missing CSRF protection rejects prompt submissions',()=>withApp(async request=>assert.equal((await request('/api/input',{method:'POST',body:'{}'})).status,403)));
 test('transcription requires explicit cloud consent',()=>withApp(async(request,cfg)=>{const response=await request('/api/transcribe',{method:'POST',headers:{Origin:cfg.origin,'X-Herdr-Mobile':'1','Content-Type':'audio/webm'},body:'audio'});assert.equal(response.status,400);assert.equal((await response.json()).error,'voice_consent_required');}));
 test('security headers prevent caching output and framing',()=>withApp(async request=>{const r=await request('/api/snapshot');assert.equal(r.headers.get('Cache-Control'),'no-store');assert.equal(r.headers.get('X-Frame-Options'),'DENY');assert.match(r.headers.get('Content-Security-Policy'),/connect-src 'self'/);}));
+
+test('raw input and scroll use only the attached controller and release invalidates it',async()=>{
+  const inputs=[],scrolls=[],released=Promise.withResolvers();
+  const pane={terminalId:'terminal',paneId:'pane',sessionId:'session',agent:'codex'};
+  const herdr={snapshot:async()=>({epoch:'test-epoch',panes:[pane]}),observe(){const stop=()=>released.resolve();stop.input=async text=>inputs.push(text);stop.scroll=body=>scrolls.push(body);return stop;}};
+  await withApp(async(request,cfg)=>{
+    const headers={Origin:cfg.origin,'X-Herdr-Mobile':'1','Content-Type':'application/json'},abort=new AbortController();
+    const stream=await request('/api/terminal?terminal=terminal&pane=pane&session=session&epoch=test-epoch',{method:'POST',headers,body:'{"cols":40,"rows":30}',signal:abort.signal});
+    const chunk=new TextDecoder().decode((await stream.body.getReader().read()).value);
+    const id=JSON.parse(chunk.match(/data: (.+)/)[1]).id;
+    const send=(body,path='/api/input')=>request(path,{method:'POST',headers,body:JSON.stringify(body)});
+    assert.equal((await send({id:'wrong',text:'x'})).status,409);assert.equal(inputs.length,0);
+    assert.equal((await send({id,text:'x'.repeat(16001)})).status,400);
+    for(const text of ['Grüße 🦊','\x1b[A','\r'])assert.equal((await send({id,text,terminal:'other'})).status,200);
+    assert.deepEqual(inputs,['Grüße 🦊','\x1b[A','\r']);
+    assert.equal((await send({id,direction:'up',lines:4,column:5,row:8},'/api/scroll')).status,200);
+    assert.deepEqual(scrolls,[{id,direction:'up',lines:4,column:5,row:8}]);
+    assert.equal((await send({id,direction:'up',lines:4,row:-1,column:5},'/api/scroll')).status,400);
+    abort.abort();await released.promise;
+    assert.equal((await send({id,text:'lost'})).status,409);assert.equal(inputs.length,3);
+    assert.equal((await send({id,direction:'up',lines:4,column:5,row:8},'/api/scroll')).status,409);
+  },{mode:'herdr-readonly',options:{herdr}});
+});

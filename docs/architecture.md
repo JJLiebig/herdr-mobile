@@ -4,7 +4,7 @@
 
 ```text
 Android / desktop browser
-  metadata-only overview | one-pane view | local text/voice draft
+  metadata-only overview | one-pane view | native terminal input
                  |
         same-origin HTTP + SSE
                  |
@@ -43,27 +43,26 @@ plain fixture text, not a hand-written terminal emulator. No dependency is fetch
 | GET /api/snapshot | Normalized metadata, host, companion epoch, timestamps and capabilities |
 | GET /api/output?terminal=... | Demo-only illustrative text |
 | GET /api/terminal?terminal=...&pane=...&session=...&epoch=... | Read-only SSE observer, matched to current snapshot |
-| POST /api/terminal?... | Standard Herdr controller stream with phone columns/rows; no terminal input |
+| POST /api/terminal?... | Standard Herdr controller stream with phone columns/rows and terminal input |
 | POST /api/viewport | Resize the exact attached controller using its stream ID; invalid after release |
-| POST /api/prompt | Demo-only operation; live mode returns 501 |
+| POST /api/scroll | Forward a bounded wheel scroll to that same controller; invalid after release |
+| POST /api/input | Raw xterm keyboard/paste data through its original live controller |
 | POST /api/transcribe | Bounded recorded audio, explicit cloud consent, returned text |
 
 A companion epoch is NOT a Herdr server epoch. It protects draft requests across companion restarts but cannot
-prove daemon identity across a daemon restart under the same companion. This is one reason live writes remain
-unimplemented. Before adding them, obtain a real Herdr server/occupant generation or prove equivalent pinning.
+prove daemon identity across a daemon restart under the same companion. The attached native controller pins the terminal runtime for its lifetime; it cannot follow a replacement daemon.
+This does not atomically pin the foreground agent conversation inside that runtime.
 
 Owner-approved exception: viewport control uses standard Herdr attach/resume, including its ability to resume
-a dormant saved agent. It changes the shared PTY dimensions, with no automatic takeover and no keystrokes.
+a dormant saved agent. It changes the shared PTY dimensions, with no automatic takeover. The owner also requested standard terminal input on this connection.
 The browser measures terminal cells against the available content box and sends changes on viewport resize.
 Closing the stream kills the controller client and releases Herdr ownership. Herdr restores active desktop
 geometry where available; a detached host may retain the last size until its next desktop attach/resize.
 
-The frontend has separate local draft keys and action targets. Known native sessions preserve drafts across
-companion restarts; unknown sessions isolate by companion epoch. Reopening is required after an identity change.
-Neither convention is itself an atomic write guard inside Herdr.
+Reopening is required after a known pane/session identity change. Snapshot checks are not themselves
+an atomic foreground-process guard inside Herdr.
 
-The ledger deduplicates operation IDs in one companion lifetime and refuses over-capacity writes. It stores
-hashes/outcomes, not prompt bodies. It is not durable and does not promise exactly-once delivery.
+The former draft ledger is not used for direct keystrokes. Input is sent once with no automatic retry.
 
 ## Protocol evidence
 
@@ -78,3 +77,19 @@ Source/interfaces inspected on 2026-09-28:
 - https://tailscale.com/docs/features/tailscale-serve
 
 These support adapter design, not proof against a particular Windows build. The user must run the exact-build gate.
+
+## Direct terminal input (owner-approved)
+
+The separate mobile composer was removed at the owner's request. The floating keyboard button focuses
+xterm's native input; its onData stream forwards characters, IME input, paste, and keys to the attached
+Herdr controller. Enter behaves exactly as in the TUI. No prompt emulation, synthetic paste boundary,
+submission delay, or separate Send flow is used. Voice UI is deferred.
+
+The first full frame is required before input. Each request captures the original controller lease;
+leaving the view invalidates it. The browser serializes input so network timing cannot reorder keys.
+On failure it closes that connection, discards unsent queued input, and asks the user to reopen and
+check what arrived. It never retries input or transfers a queue to a reconnected terminal.
+
+This is ordinary shared-terminal behavior: existing desktop text is preserved, and the controller
+pins the terminal runtime rather than atomically pinning its foreground process. The controller has
+no input acknowledgment; HTTP success means forwarded to its stdin, not accepted by the agent.

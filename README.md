@@ -2,16 +2,16 @@
 
 **v0.1.0-draft.1 — a mobile-first companion for existing Herdr agents.**
 
-Find an agent, open one pane, read, type or dictate, review, and send deliberately.
+Find an agent, open its pane, and type directly into its terminal.
 Windows remains the execution host. Existing panes use standard Herdr attach/resume behavior.
 
 The mobile terminal now controls the selected pane's shared dimensions so the agent renders at phone
 width. Keyboard and rotation changes resize it too. Leaving/backgrounding releases control to Herdr;
-an active desktop geometry owner restores its sizing. Live prompt submission and keys remain disabled.
+an active desktop geometry owner restores its sizing. The keyboard button focuses the terminal directly. Voice input remains deferred.
 
 > This is a first implementation draft, not a finished live-control release.
-> Demo interaction works. The real Herdr adapter supports native-Windows read-only observation.
-> There is no switch to enable live prompt submission in this revision.
+> Live input uses standard terminal semantics: typing, paste, and Enter go straight to the TUI.
+> A successful response confirms forwarding, not that the agent processed the message.
 
 [Overview preview](docs/preview/overview.png) · [Focused agent preview](docs/preview/focus.png)
 
@@ -25,7 +25,7 @@ npm start
 ```
 
 Open `http://127.0.0.1:8787` on that computer. The cards and output are clearly labeled fixtures.
-Try multiline typing, agent switching, draft recovery, attention filtering, and simulated Send.
+Demo mode previews navigation and output; keyboard control needs a real Herdr connection.
 
 ```powershell
 npm run check
@@ -39,12 +39,12 @@ billing, or active agent session is involved.
 | Area | Status |
 | --- | --- |
 | Overview: spaces, flat pane cards, tab context, search, attention filter | Implemented; DOM-smoke checked |
-| Focus: one output view, normal multiline composer, explicit Send | Implemented in demo; DOM-smoke checked |
-| Draft isolation, late-transcript conflicts, duplicate-operation handling | Implemented; automated tests |
+| Focus: fullscreen terminal, floating keyboard button, direct TUI input | Implemented; browser wiring and transport tested |
+| Separate mobile composer and draft flow | Removed; typing uses the existing terminal input |
 | Browser recording and host-side OpenAI file transcription | Implemented; provider mocked in tests; real microphone/API not exercised |
 | Herdr snapshot normalization and JSON terminal observer | Native Windows snapshot, full frame, reconnect and layout preservation checked |
 | Live ANSI display | xterm 6.0.0 installed and locked; Android display acceptance remains open |
-| Real agent prompts, terminal keys, input ownership, resize/release | **Not implemented; server rejects live mutations** |
+| Keyboard input, terminal keys, resize/release | Same attached Herdr controller; automated transport/failure checks; Android keyboard acceptance pending |
 | PWA manifest | Included; no service worker/offline mode in this draft |
 | Direct private-network access | Configurable bind and exact origin; no separate app login |
 
@@ -55,7 +55,10 @@ The original blueprint recommends React/TypeScript and a Rust companion. This re
 build chain or installed dependencies. This is an explicit prototype implementation choice, not a hidden
 claim that the recommended production stack has been built. See [architecture decision](docs/architecture.md).
 
-## Voice
+## Voice (deferred)
+
+There is no in-page voice or message composer in the current UI. The earlier provider code remains
+for a later voice slice; the description below records that earlier draft, not enabled controls.
 
 Copy `.env.example` to `.env`, add your own `OPENAI_API_KEY`, and restart. The host keeps the key; the
 browser never receives it. The default configured model is `gpt-4o-mini-transcribe`, adjustable via
