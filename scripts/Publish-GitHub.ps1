@@ -27,7 +27,7 @@ if (Test-Path (Join-Path $root '.git')) { throw 'This folder already has a .git 
 if (Test-Path (Join-Path $root '.env')) { Write-Host '.env will remain ignored and is not staged.' }
 Invoke-Checked 'git' @('init', '-b', 'main')
 # Do not mutate the user's global author identity. git commit will use their configured identity.
-Invoke-Checked 'git' @('add', '.gitignore', '.gitattributes', '.env.example', 'herdr-mobile.config.example.json', 'package.json', 'README.md', 'AGENTS.md', 'SECURITY.md', 'docs', 'shared', 'server', 'public', 'tests', 'scripts', '.github')
+Invoke-Checked 'git' @('add', '.gitignore', '.gitattributes', '.env.example', 'herdr-mobile.config.example.json', 'package.json', 'package-lock.json', 'README.md', 'AGENTS.md', 'SECURITY.md', 'docs', 'shared', 'server', 'public', 'tests', 'scripts', '.github')
 $staged = & git diff --cached --name-only
 if ($staged | Where-Object { $_ -match '(^|/)\.env$|^artifacts/|^node_modules/|herdr-mobile\.config\.json$' }) { throw 'Unexpected sensitive path staged. Publication stopped.' }
 Invoke-Checked 'git' @('commit', '-m', 'Draft v1: mobile overview, focused composer, voice and read-only bridge')

@@ -20,7 +20,7 @@ test('viewport streams fit the content box, resize the same lease, and reject a 
   const saved=Object.fromEntries(['Terminal','fetch','ResizeObserver','getComputedStyle'].map(k=>[k,globalThis[k]]));
   class Terminal {
     cols=80;rows=24;writes=[];options={};onData(callback){this.data=callback;return {dispose(){}};}focus(){}blur(){}parser={registerOscHandler:()=>({dispose(){}})};
-    constructor(){terminals.push(this);}open(){}reset(){this.resets=(this.resets||0)+1;}resize(c,r){this.cols=c;this.rows=r;}dispose(){this.disposed=true;}
+    constructor(){this.textarea={listeners:new Map(),addEventListener(name,fn){this.listeners.set(name,fn);},removeEventListener(name){this.listeners.delete(name);}};terminals.push(this);}open(){}reset(){this.resets=(this.resets||0)+1;}resize(c,r){this.cols=c;this.rows=r;}dispose(){this.disposed=true;}
     write(bytes,done){const text=Buffer.from(bytes).toString();this.writes.push(text);if(text==='frame'&&delayFrame)finishFrame=done;else done?.();}
   }
   globalThis.Terminal=Terminal;
@@ -61,10 +61,17 @@ test('viewport streams fit the content box, resize the same lease, and reject a 
   assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body),[{id:'lease-one',text:'Grüße 🦊'}]);
   inputGate.resolve({ok:true});await tick();
   assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r']);
+  terminals[0].textarea.listeners.get('compositionstart')();
+  first.key('\r');
+  assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r']);
+  setTimeout(()=>terminals[0].data('composed'),0); // xterm forwards composition text after the compositionend event.
+  terminals[0].textarea.listeners.get('compositionend')();
+  await new Promise(resolve=>setTimeout(resolve,10));await tick();
+  assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text).slice(-2),['composed','\r']);
   inputGate=Promise.withResolvers();terminals[0].data('uncertain');terminals[0].data('queued');await tick();
   inputGate.reject(new Error('lost response'));await tick();
   assert.equal(first.inputFailed,true);assert.equal(first.closed,true);
-  assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r','uncertain']);
+  assert.deepEqual(requests.filter(r=>r.url==='/api/input').map(r=>r.body.text),['Grüße 🦊','\r','composed','\r','uncertain']);
   first.close();await tick();assert.equal(terminals[0].disposed,true);assert.equal(observers[0].closed,true);
   const second=await openTerminal(element,snapshot,pane,()=>{});await second.ready;
   emit(1,'message',frame(1,false));await tick();

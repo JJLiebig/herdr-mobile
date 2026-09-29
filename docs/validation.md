@@ -50,8 +50,8 @@ repository creation, push, or CI run. The publishing script has not modified Git
 - [Overview](preview/overview.png) and [focused pane](preview/focus.png) screenshots
 
 The optional reproducible harness is `scripts/validation/browser-smoke.py` and requires Python Playwright
-plus Chromium. It is not part of the no-dependency Node test suite. Run it only with port 8787 free;
-its fixtures and outputs are local. It writes new evidence to ignored `artifacts/browser-smoke/`.
+plus Chromium. It is not part of the no-dependency Node test suite. It starts a demo server on a free
+loopback port and writes new evidence to ignored `artifacts/browser-smoke/`.
 
 The live-input acceptance gate remains open. Passing the local suite does not make this a live-control release.
 # Mobile viewport follow-up — 2026-09-28

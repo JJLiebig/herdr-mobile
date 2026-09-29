@@ -20,7 +20,7 @@ async function app(saved=[]){
   const snapshot={schemaVersion:1,epoch:'epoch',host:{id:'host',label:'Host'},mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{voice:false},panes:[{terminalId:'terminal',paneId:'pane',sessionId:'session',title:'Agent',space:'Space',tab:'Tab',agent:'codex',status:'idle'}]};
   const context=vm.createContext({...model,AbortSignal,URLSearchParams,crypto,setupFocus,
     DraftStore:class extends DraftStore{constructor(){super(storage);}},
-    openTerminal:async(element,snapshot,pane,onStatus)=>{const view={pane:{...pane},viewportId:'attached-lease',closed:false,ready:Promise.resolve(),status:onStatus,focus(){this.focused=true;},blur(){this.focused=false;},input(text){this.lastInput=text;},close(){this.closed=true;this.viewportId=null;}};streams.push(view);return view;},
+    openTerminal:async(element,snapshot,pane,onStatus)=>{const view={pane:{...pane},viewportId:'attached-lease',closed:false,ready:Promise.resolve(),status:onStatus,focus(){this.focused=true;},blur(){this.focused=false;},input(text){this.lastInput=text;},key(text){this.input(text);},close(){this.closed=true;this.viewportId=null;}};streams.push(view);return view;},
     document:{hidden:false,body:new Element(),getElementById(id){if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);},createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelectorAll:()=>[],addEventListener(name,fn){handlers[name]=fn;}},
     window:{innerHeight:800,scrollY:0,scrollTo(){},addEventListener(name,fn){handlers[name]=fn;}},history:{pushState(){},replaceState(){}},location:{pathname:'/'},setInterval(){},
     fetch:async(url,options)=>{if(failed)throw new Error('network lost');
@@ -43,6 +43,7 @@ test('a closed controller stays closed until the user explicitly reopens the pan
 });
 test('reconnect never follows a replaced session or opens output while backgrounded',async()=>{
   const a=await app();a.context.document.hidden=true;a.handlers.visibilitychange();assert.equal(a.streams[0].closed,true);
+  assert.match(a.nodes.get('output-status').textContent,/Return to Agents and reopen/);
   await a.run('refresh()');assert.equal(a.streams.length,1);
   a.snapshot.panes[0]={...a.snapshot.panes[0],sessionId:'replacement'};a.context.document.hidden=false;
   await a.run('refresh()');assert.equal(a.streams.length,1);assert.match(a.nodes.get('message').textContent,/identity/);

@@ -45,6 +45,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
   let terminal,observer,resizeTimer,viewportId,lastSize,unbindScroll;
   let pendingScroll=0,pendingPosition=null,scrolling=false;
   let cancelled=false,sequence=-1,firstFrameReady=false,pending=0,resizing=false;
+  let composing=false,compositionEpoch=0,pendingKeys=[];
   const abort=new AbortController(),disposables=[];
   const close=()=>{if(cancelled)return;cancelled=true;abort.abort();clearTimeout(resizeTimer);unbindScroll?.();observer?.disconnect();for(const d of disposables)d.dispose();terminal?.dispose();};
   const fail=error=>{if(cancelled)return;close();onStatus(error.message||'Disconnected. Reopen the pane.');};
@@ -60,6 +61,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
       if(!response.ok)throw new Error('Input failed. Check the terminal before continuing.');
     }).catch(()=>{inputFailed=true;fail(new Error('Input interrupted. Reopen the thread and check what arrived. Nothing was retried.'));}).finally(()=>{queuedInput-=text.length;});
   }
+  function key(text){if(composing)pendingKeys.push(text);else input(text);}
   async function scroll(lines,point){
     if(cancelled||!viewportId)return;
     const rect=element.querySelector('.xterm-screen').getBoundingClientRect();
@@ -123,6 +125,13 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     terminal.open(element);
     // Herdr paints frames without forwarding the PTY's paste mode; xterm must bracket clipboard paste for Herdr to deliver it as one paste.
     terminal.write('\x1b[?2004h');
+    const textarea=terminal.textarea;
+    if(!textarea)throw new Error('Terminal input is unavailable. Reopen the pane.');
+    const compositionStart=()=>{compositionEpoch++;composing=true;};
+    const compositionEnd=()=>{const epoch=compositionEpoch;setTimeout(()=>{if(cancelled||epoch!==compositionEpoch)return;composing=false;for(const text of pendingKeys.splice(0))input(text);},0);};
+    textarea.addEventListener('compositionstart',compositionStart);
+    textarea.addEventListener('compositionend',compositionEnd);
+    disposables.push({dispose(){textarea.removeEventListener('compositionstart',compositionStart);textarea.removeEventListener('compositionend',compositionEnd);}});
     disposables.push(terminal.onData(input));
     for(const code of [0,1,2,7,8,9,52,1337])disposables.push(terminal.parser.registerOscHandler(code,()=>true));
     lastSize=terminalSize(element,terminal);terminal.resize(lastSize.cols,lastSize.rows);
@@ -134,5 +143,5 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     observer=new ResizeObserver(queueResize);observer.observe(element);
     readFrames(response.body).catch(fail);
   })();
-  return {ready,close,input,focus:()=>{if(!cancelled&&firstFrameReady)terminal.focus();},blur:()=>terminal?.blur(),get inputFailed(){return inputFailed;},get closed(){return cancelled;},get viewportId(){return !cancelled&&firstFrameReady?viewportId:null;},latest:()=>scroll(65535)};
+  return {ready,close,input,key,focus:()=>{if(!cancelled&&firstFrameReady)terminal.focus();},blur:()=>terminal?.blur(),get inputFailed(){return inputFailed;},get closed(){return cancelled;},get viewportId(){return !cancelled&&firstFrameReady?viewportId:null;},latest:()=>scroll(65535)};
 }
