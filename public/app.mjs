@@ -142,7 +142,7 @@ $('key-Shift').addEventListener('pointerdown',event=>event.preventDefault());
 $('key-Shift').addEventListener('click',()=>setShift(!shifted));
 for(const [key,keys] of Object.entries({Escape:['\x1b','\x1b'],Tab:['\t','\x1b[Z'],ArrowUp:['\x1b[A','\x1b[1;2A'],ArrowDown:['\x1b[B','\x1b[1;2B'],Enter:['\r','\x1b[13;2u']})){
   $('key-'+key).addEventListener('pointerdown',event=>event.preventDefault());
-  $('key-'+key).addEventListener('click',()=>{if(terminalView?.key(keys[shifted?1:0])===false)message('Finish composing text, then tap the key again.');else message('');setShift(false);});
+  $('key-'+key).addEventListener('click',()=>{if(terminalView?.key(keys[shifted?1:0])===false)message('Finish composing text, then tap the key again.');else{message('');setShift(false);}});
 }
 $('keys-close').addEventListener('click',()=>setKeyboard(false));
 $('back').addEventListener('click',back);window.addEventListener('popstate',()=>{if(active)back();});

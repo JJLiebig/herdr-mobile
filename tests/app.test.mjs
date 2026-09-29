@@ -80,8 +80,12 @@ test('keyboard button focuses the TUI directly and keys use that same connection
   a.nodes.get('key-Tab').listeners.click();assert.equal(a.streams[0].lastInput,'\t');
   a.nodes.get('key-Shift').listeners.click();a.nodes.get('key-Enter').listeners.click();assert.equal(a.streams[0].lastInput,'\x1b[13;2u');
   a.nodes.get('key-Enter').listeners.click();assert.equal(a.streams[0].lastInput,'\r');
-  a.streams[0].key=()=>false;a.nodes.get('key-Enter').listeners.click();
+  a.nodes.get('key-Shift').listeners.click();a.streams[0].key=()=>false;a.nodes.get('key-Enter').listeners.click();
   assert.match(a.nodes.get('message').textContent,/Finish composing text/);
+  assert.equal(vm.runInContext('shifted',a.context),true);
+  a.streams[0].key=text=>{a.streams[0].input(text);return true;};a.nodes.get('key-Enter').listeners.click();
+  assert.equal(a.streams[0].lastInput,'\x1b[13;2u');assert.equal(vm.runInContext('shifted',a.context),false);
+  assert.equal(a.nodes.get('message').textContent,'');
   a.nodes.get('keys-close').listeners.click();assert.equal(a.streams[0].focused,false);
   a.streams[0].inputFailed=true;a.streams[0].close();await a.run('refresh()');
   assert.equal(a.streams.length,1);assert.equal(a.nodes.get('input-toggle').disabled,true);
