@@ -27,15 +27,17 @@ function renderHosts(){
   for(const host of snapshot.hosts||[]){if(host.id===snapshot.host.id)continue;const option=el('option','',host.label);option.value=host.url;select.append(option);}
 }
 function threadButton(pane,subtitle=''){
-  const button=el('button','thread-row');button.type='button';button.setAttribute('aria-label',`Open ${pane.title} in ${pane.space} / ${pane.tab} · ${STATUS_LABELS[pane.status]}`);
+  const freshness=isFresh(snapshot)?'Current':'Stale';
+  const button=el('button','thread-row');button.type='button';button.setAttribute('aria-label',`Open ${pane.title} in ${pane.space} / ${pane.tab} · ${pane.agent||'Shell'} · ${STATUS_LABELS[pane.status]} · ${freshness}${pane.summary?` · ${pane.summary}`:''}`);
   button.append(el('span',`status-dot ${pane.status}`));
   const labels=el('span','thread-labels');labels.append(el('span','thread-title',pane.title));
-  labels.append(el('span','thread-subtitle',subtitle||STATUS_LABELS[pane.status]));
+  labels.append(el('span','thread-subtitle',[subtitle,pane.agent||'Shell',STATUS_LABELS[pane.status],freshness].filter(Boolean).join(' · ')));
+  if(pane.summary){const summary=el('span','thread-summary',pane.summary);summary.title=pane.summarySource||'';labels.append(summary);}
   button.append(labels);button.addEventListener('click',()=>showPane(pane));return button;
 }
 function renderLanding(force=false){
   if(!snapshot)return;
-  const signature=JSON.stringify(snapshot.panes.map(({observedAt,...pane})=>pane));
+  const signature=JSON.stringify([isFresh(snapshot),snapshot.panes.map(({observedAt,...pane})=>pane)]);
   if(!force && (signature===lastLandingSignature || Date.now()-lastInteraction<800))return;
   lastLandingSignature=signature;
   const priority=document.createDocumentFragment();
@@ -93,7 +95,7 @@ async function refresh(){
     snapshot=data;renderConnection();renderHosts();if(!active)renderLanding();else if(!currentMatches()){closeOutput();renderFocusStatus('unknown','Unavailable');message('This agent identity or companion changed. Return to Agents and reopen it.');}else{const p=snapshot.panes.find(p=>p.terminalId===active.target.terminalId);renderFocusStatus(p.status);}
     if(active&&currentMatches()&&!document.hidden&&snapshot.mode!=='demo'&&(!terminalView||(terminalView.closed&&!terminalView.inputFailed)))loadOutput();
     updateInput();
-  }catch(error){if(snapshot)snapshot={...snapshot,connected:false};renderConnection(error.message);closeOutput();renderFocusStatus('unknown','Disconnected');$('output-status').textContent='Reconnecting…';updateInput();}
+  }catch(error){if(snapshot)snapshot={...snapshot,connected:false};renderConnection(error.message);if(!active)renderLanding();closeOutput();renderFocusStatus('unknown','Disconnected');$('output-status').textContent='Reconnecting…';updateInput();}
   finally{loadingSnapshot=false;}
 }
 function closeOutput(){outputGeneration++;outputAbort?.abort();outputAbort=null;terminalView?.close();terminalView=null;}
@@ -156,5 +158,5 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',closeOutput);
 window.addEventListener('online',refresh);window.addEventListener('offline',()=>{if(snapshot)snapshot.connected=false;renderConnection('Offline. Input is disconnected.');closeOutput();renderFocusStatus('unknown','Disconnected');updateInput();});
-setInterval(()=>{refresh();if(snapshot&&!isFresh(snapshot)){renderConnection();updateInput();}},5000);
+setInterval(()=>{refresh();if(snapshot&&!isFresh(snapshot)){renderConnection();if(!active)renderLanding();updateInput();}},5000);
 refresh();

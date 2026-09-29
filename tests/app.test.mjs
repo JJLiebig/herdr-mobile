@@ -80,6 +80,15 @@ test('keyboard button focuses the TUI directly and keys use that same connection
   a.streams[0].inputFailed=true;a.streams[0].close();await a.run('refresh()');
   assert.equal(a.streams.length,1);assert.equal(a.nodes.get('input-toggle').disabled,true);
 });
+test('overview retains available agent metadata and marks disconnected snapshots stale',async()=>{
+  const a=await app();a.snapshot.panes[0].summary='Existing summary';a.snapshot.panes[0].summarySource='Herdr display metadata';
+  await a.run('back(); refresh(); renderLanding(true)');
+  const row=()=>a.nodes.get('priority-list').children[0].children[0].children[1];
+  assert.match(row().children[1].children[1].textContent,/codex · Idle · Current/);
+  assert.equal(row().children[1].children[2].textContent,'Existing summary');
+  a.fail(true);await a.run('refresh()');
+  assert.match(row().children[1].children[1].textContent,/Stale/);
+});
 
 test('focused status follows completion, new work, and disconnection',async()=>{
   const a=await app();
