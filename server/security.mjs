@@ -7,7 +7,7 @@ export function readConfig(env = process.env) {
   const port = Number(env.HERDR_MOBILE_PORT || 8787);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid HERDR_MOBILE_PORT');
   const mode = env.HERDR_MOBILE_MODE || 'demo';
-  if (!['demo', 'herdr-readonly'].includes(mode)) throw new Error('Only demo and herdr-readonly are implemented. Live writes are not available.');
+  if (!['demo', 'herdr-readonly'].includes(mode)) throw new Error('Only demo and herdr-readonly modes are implemented.');
   const urls = [env.HERDR_MOBILE_ORIGIN || `http://127.0.0.1:${port}`, ...(env.HERDR_MOBILE_EXTRA_ORIGINS || '').split(',').map(x=>x.trim()).filter(Boolean)].map(value=>{
     const url=new URL(value);
     if (url.pathname !== '/' || url.search || url.hash || url.username || url.password) throw new Error('Origin must contain only scheme, hostname and optional port');

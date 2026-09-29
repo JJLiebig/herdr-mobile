@@ -57,17 +57,19 @@ export async function createApp(cfg, options={}) {
           try{geometry=JSON.parse((await readBody(req,4096)).toString('utf8'));}catch{throw new HttpError(400,'invalid_viewport');}
           if(!geometry||!validSize(geometry))throw new HttpError(400,'invalid_viewport','Viewport cols must be 1–1000 and rows 1–500.');
         }
+        let finished=false;let stop=()=>{};let heartbeat;const viewportId=geometry?randomUUID():null;
+        res.on('close',()=>{finished=true;viewports.delete(viewportId);clearInterval(heartbeat);stop();});
         const s=await snapshot();
+        if(finished)return;
         if(url.searchParams.get('epoch')!==s.epoch)throw new HttpError(409,'stale_target');
         const pane=s.panes.find(p=>p.terminalId===url.searchParams.get('terminal') && p.paneId===url.searchParams.get('pane') && (p.sessionId||'')===(url.searchParams.get('session')||''));
         if(!pane)throw new HttpError(409,'stale_target');
         res.writeHead(200,{'Content-Type':'text/event-stream','X-Accel-Buffering':'no','Connection':'keep-alive'});res.flushHeaders();
-        let finished=false;let stop=()=>{};let heartbeat;const viewportId=geometry?randomUUID():null;
         const end=reason=>{if(finished)return;finished=true;viewports.delete(viewportId);clearInterval(heartbeat);if(!res.destroyed){res.write(`event: closed\ndata: ${JSON.stringify({reason})}\n\n`);res.end();}};
         stop=herdr.observe(pane,frame=>{if(finished)return;if(res.writableLength>2*1024*1024){end('slow_client_reconnect_required');stop();return;}res.write(`data: ${JSON.stringify(frame)}\n\n`);},end,geometry);
         if(geometry){viewports.set(viewportId,stop);res.write(`event: viewport\ndata: ${JSON.stringify({id:viewportId})}\n\n`);}
         heartbeat=setInterval(()=>{if(!finished)res.write(': heartbeat\n\n');},15000);
-        res.on('close',()=>{finished=true;viewports.delete(viewportId);clearInterval(heartbeat);stop();});return;
+        return;
       }
       if(req.method==='POST' && path==='/api/input'){
         if(req.headers['content-type']!=='application/json')throw new HttpError(415,'json_required');

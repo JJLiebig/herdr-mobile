@@ -26,6 +26,18 @@ test('viewport sizing stays on its attached terminal and release invalidates the
     assert.equal((await request('/api/viewport',{method:'POST',headers,body:JSON.stringify({id,cols:40,rows:30})})).status,409);
   },{mode:'herdr-readonly',options:{herdr}});
 });
+test('disconnect during snapshot validation cannot create an orphan terminal controller',async()=>{
+  const entered=Promise.withResolvers(),snapshotGate=Promise.withResolvers();let attached=0;
+  const herdr={snapshot(){entered.resolve();return snapshotGate.promise;},observe(){attached++;return ()=>{};}};
+  await withApp(async(request,cfg)=>{
+    const abort=new AbortController();
+    const pending=request('/api/terminal?terminal=terminal&pane=pane&session=session&epoch=test-epoch',{method:'POST',headers:{Origin:cfg.origin,'X-Herdr-Mobile':'1','Content-Type':'application/json'},body:'{"cols":40,"rows":30}',signal:abort.signal});
+    await entered.promise;abort.abort();await assert.rejects(pending,{name:'AbortError'});
+    await new Promise(resolve=>setTimeout(resolve,25)); // Let the server receive the socket close before snapshot resolves.
+    snapshotGate.resolve({epoch:'test-epoch',panes:[{terminalId:'terminal',paneId:'pane',sessionId:'session'}]});
+    await new Promise(setImmediate);assert.equal(attached,0);
+  },{mode:'herdr-readonly',options:{herdr}});
+});
 test('forbidden Origin cannot read snapshots',()=>withApp(async request=>assert.equal((await request('/api/snapshot',{headers:{Origin:'https://evil.example'}})).status,403)));
 test('LAN and primary addresses both work while cross-origin requests between them are rejected',()=>withApp(async(request,cfg)=>{
   assert.equal((await request('/api/snapshot')).status,200);

@@ -44,14 +44,14 @@ export function bindTerminalScroll(element,scroll,lineHeight){
 export async function openTerminal(element,snapshot,pane,onStatus){
   let terminal,observer,resizeTimer,viewportId,lastSize,unbindScroll;
   let pendingScroll=0,pendingPosition=null,scrolling=false;
-  let cancelled=false,sequence=-1,pending=0,resizing=false;
+  let cancelled=false,sequence=-1,firstFrameReady=false,pending=0,resizing=false;
   const abort=new AbortController(),disposables=[];
   const close=()=>{if(cancelled)return;cancelled=true;abort.abort();clearTimeout(resizeTimer);unbindScroll?.();observer?.disconnect();for(const d of disposables)d.dispose();terminal?.dispose();};
   const fail=error=>{if(cancelled)return;close();onStatus(error.message||'Disconnected. Reopen the pane.');};
   const headers={'Content-Type':'application/json','X-Herdr-Mobile':'1'};
   let inputQueue=Promise.resolve(),queuedInput=0,inputFailed=false;
   function input(text){
-    if(cancelled||!viewportId||sequence<0||!text)return;
+    if(cancelled||!viewportId||!firstFrameReady||!text)return;
     if(queuedInput+text.length>16000){inputFailed=true;fail(new Error('Too much pending input. Reopen the thread and check the terminal.'));return;}
     const id=viewportId;queuedInput+=text.length;
     inputQueue=inputQueue.then(async()=>{
@@ -99,7 +99,7 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     const bytes=Uint8Array.from(atob(f.bytes),c=>c.charCodeAt(0));pending+=bytes.length;
     if(pending>2*1024*1024)throw new Error('Output exceeded the mobile render buffer. Reopen the pane.');
     if(terminal.cols!==f.width||terminal.rows!==f.height)terminal.resize(f.width,f.height);
-    terminal.write(bytes,()=>{pending-=bytes.length;terminal.options.disableStdin=false;});onStatus('');
+    terminal.write(bytes,()=>{pending-=bytes.length;if(!cancelled){firstFrameReady=true;terminal.options.disableStdin=false;onStatus('');}});
   }
   async function readFrames(body){
     const reader=body.getReader(),decoder=new TextDecoder();let buffer='';
@@ -121,6 +121,8 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     await loadXterm();if(cancelled)return;
     terminal=new globalThis.Terminal({disableStdin:true,cursorBlink:false,fontSize:12,fontFamily:'ui-monospace, Consolas, monospace',scrollback:0,allowProposedApi:false,convertEol:false,theme:{background:'#11191f',foreground:'#e9eef0'}});
     terminal.open(element);
+    // Herdr paints frames without forwarding the PTY's paste mode; xterm must bracket clipboard paste for Herdr to deliver it as one paste.
+    terminal.write('\x1b[?2004h');
     disposables.push(terminal.onData(input));
     for(const code of [0,1,2,7,8,9,52,1337])disposables.push(terminal.parser.registerOscHandler(code,()=>true));
     lastSize=terminalSize(element,terminal);terminal.resize(lastSize.cols,lastSize.rows);
@@ -132,5 +134,5 @@ export async function openTerminal(element,snapshot,pane,onStatus){
     observer=new ResizeObserver(queueResize);observer.observe(element);
     readFrames(response.body).catch(fail);
   })();
-  return {ready,close,input,focus:()=>{if(!cancelled&&sequence>=0)terminal.focus();},blur:()=>terminal?.blur(),get inputFailed(){return inputFailed;},get closed(){return cancelled;},get viewportId(){return !cancelled&&sequence>=0?viewportId:null;},latest:()=>scroll(65535)};
+  return {ready,close,input,focus:()=>{if(!cancelled&&firstFrameReady)terminal.focus();},blur:()=>terminal?.blur(),get inputFailed(){return inputFailed;},get closed(){return cancelled;},get viewportId(){return !cancelled&&firstFrameReady?viewportId:null;},latest:()=>scroll(65535)};
 }

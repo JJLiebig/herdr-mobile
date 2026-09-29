@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from'node:assert/strict';
 import{readConfig,authorize,validateHosts}from'../server/security.mjs';
 const cfg=readConfig({});const req=(headers={},method='GET')=>({socket:{remoteAddress:'127.0.0.1'},method,headers:{host:cfg.host,...headers}});
-test('live write mode does not exist',()=>assert.throws(()=>readConfig({HERDR_MOBILE_MODE:'live'}),/not available/));
+test('unsupported mode is rejected',()=>assert.throws(()=>readConfig({HERDR_MOBILE_MODE:'live'}),/Only demo and herdr-readonly modes are implemented/));
 test('foreign Host and Origin are rejected even on loopback',()=>{assert.throws(()=>authorize(req({host:'evil.example'}),cfg),/invalid_host/);assert.throws(()=>authorize(req({origin:'https://evil.example'}),cfg),/invalid_origin/);});
 test('all mutations require the exact origin and custom header',()=>{assert.throws(()=>authorize(req({},'POST'),cfg),/csrf/);assert.throws(()=>authorize(req({origin:cfg.origin},'POST'),cfg),/csrf/);authorize(req({origin:cfg.origin,'x-herdr-mobile':'1'},'POST'),cfg);});
 test('cross-site browser requests are rejected',()=>assert.throws(()=>authorize(req({'sec-fetch-site':'cross-site'}),cfg),/cross_site/));

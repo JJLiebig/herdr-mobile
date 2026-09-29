@@ -16,12 +16,12 @@ test('swipes and wheel gestures scroll host history with normal touch direction 
 
 test('viewport streams fit the content box, resize the same lease, and reject a delta after reconnect',async t=>{
   const terminals=[],streams=[],requests=[],observers=[],listeners=new Map();
-  let inputGate;
+  let inputGate,delayFrame=false,finishFrame;
   const saved=Object.fromEntries(['Terminal','fetch','ResizeObserver','getComputedStyle'].map(k=>[k,globalThis[k]]));
   class Terminal {
     cols=80;rows=24;writes=[];options={};onData(callback){this.data=callback;return {dispose(){}};}focus(){}blur(){}parser={registerOscHandler:()=>({dispose(){}})};
     constructor(){terminals.push(this);}open(){}reset(){this.resets=(this.resets||0)+1;}resize(c,r){this.cols=c;this.rows=r;}dispose(){this.disposed=true;}
-    write(bytes,done){this.writes.push(Buffer.from(bytes).toString());done();}
+    write(bytes,done){const text=Buffer.from(bytes).toString();this.writes.push(text);if(text==='frame'&&delayFrame)finishFrame=done;else done?.();}
   }
   globalThis.Terminal=Terminal;
   globalThis.getComputedStyle=()=>({paddingLeft:'8',paddingRight:'8',paddingTop:'8',paddingBottom:'8'});
@@ -40,10 +40,16 @@ test('viewport streams fit the content box, resize the same lease, and reject a 
   const tick=()=>new Promise(setImmediate);
   const first=await openTerminal(element,snapshot,pane,()=>{});await first.ready;
   assert.deepEqual(requests[0].body,{cols:45,rows:50});
+  assert.equal(terminals[0].writes[0],'\x1b[?2004h','xterm must mark clipboard input as a single paste for Herdr');
+  delayFrame=true;
   emit(0,'viewport',{id:'lease-one'});emit(0,'message',frame(10,true));await tick();
-  assert.deepEqual(terminals[0].writes,['frame']);
+  assert.equal(first.viewportId,null,'input must wait until the first frame is rendered');
+  terminals[0].data('early');await tick();assert.equal(requests.filter(r=>r.url==='/api/input').length,0);
+  finishFrame();delayFrame=false;
+  assert.equal(first.viewportId,'lease-one');
+  assert.deepEqual(terminals[0].writes,['\x1b[?2004h','frame']);
   emit(0,'message',frame(11,true));await tick();
-  assert.deepEqual(terminals[0].writes,['frame','frame']);
+  assert.deepEqual(terminals[0].writes,['\x1b[?2004h','frame','frame']);
   assert.equal(terminals[0].resets||0,0,'a full repaint must not blank the active terminal');
   const touch=y=>({touches:[{clientX:82,clientY:y}],preventDefault(){},stopPropagation(){}});
   listeners.get('touchstart')(touch(244));listeners.get('touchmove')(touch(292));await tick();
@@ -62,5 +68,5 @@ test('viewport streams fit the content box, resize the same lease, and reject a 
   first.close();await tick();assert.equal(terminals[0].disposed,true);assert.equal(observers[0].closed,true);
   const second=await openTerminal(element,snapshot,pane,()=>{});await second.ready;
   emit(1,'message',frame(1,false));await tick();
-  assert.equal(second.closed,true);assert.deepEqual(terminals[1].writes,[]);
+  assert.equal(second.closed,true);assert.deepEqual(terminals[1].writes,['\x1b[?2004h']);
 });

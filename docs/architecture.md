@@ -82,13 +82,15 @@ These support adapter design, not proof against a particular Windows build. The 
 
 The separate mobile composer was removed at the owner's request. The floating keyboard button focuses
 xterm's native input; its onData stream forwards characters, IME input, paste, and keys to the attached
-Herdr controller. Enter behaves exactly as in the TUI. No prompt emulation, synthetic paste boundary,
+Herdr controller. The local renderer enables bracketed paste so Herdr receives clipboard text as one paste
+and applies the attached runtime's paste mode. Enter behaves exactly as in the TUI. No prompt emulation,
 submission delay, or separate Send flow is used. Voice UI is deferred.
 
 The first full frame is required before input. Each request captures the original controller lease;
 leaving the view invalidates it. The browser serializes input so network timing cannot reorder keys.
-On failure it closes that connection, discards unsent queued input, and asks the user to reopen and
-check what arrived. It never retries input or transfers a queue to a reconnected terminal.
+On failure, disconnection, or backgrounding it closes that connection, discards unsent queued input,
+and asks the user to return to Agents, reopen the pane, and check what arrived. It never retries input
+or automatically attaches a new controller.
 
 This is ordinary shared-terminal behavior: existing desktop text is preserved, and the controller
 pins the terminal runtime rather than atomically pinning its foreground process. The controller has

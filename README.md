@@ -89,7 +89,7 @@ Then set `HERDR_MOBILE_MODE=herdr-readonly` and the same absolute `HERDR_BIN_PAT
 Keep `HERDR_SOCKET_PATH` aligned with the existing session where necessary.
 
 The renderer is included by `npm ci`. Its JavaScript/CSS comes from the companion, never a runtime CDN.
-Interrupted read-only streams reconnect after a fresh snapshot validates the same pane and session.
+If a live terminal stream closes, return to Agents and reopen the pane before sending more input.
 
 Read [Windows gate](docs/windows-gate.md) before testing real terminals. A failed adapter does not fall
 back to launching Herdr, a new agent, a shell, or a WSL instance.

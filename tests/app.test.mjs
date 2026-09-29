@@ -14,13 +14,13 @@ class Element {
   children=[];
   addEventListener(name,fn){this.listeners[name]=fn;}replaceChildren(...nodes){this.children=nodes;}append(...nodes){this.children.push(...nodes);}setAttribute(){}
 }
-async function app(){
-  const nodes=new Map(),handlers={},streams=[],memory=new Map();let failed=false,sendFails=false;
+async function app(saved=[]){
+  const nodes=new Map(),handlers={},streams=[],memory=new Map(saved);let failed=false,sendFails=false;
   const storage={get length(){return memory.size;},key:i=>[...memory.keys()][i],getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)};
   const snapshot={schemaVersion:1,epoch:'epoch',host:{id:'host',label:'Host'},mode:'herdr-readonly',connected:true,observedAt:Date.now(),capabilities:{voice:false},panes:[{terminalId:'terminal',paneId:'pane',sessionId:'session',title:'Agent',space:'Space',tab:'Tab',agent:'codex',status:'idle'}]};
   const context=vm.createContext({...model,AbortSignal,URLSearchParams,crypto,setupFocus,
     DraftStore:class extends DraftStore{constructor(){super(storage);}},VoiceRecorder:class{},
-    openTerminal:async(element,snapshot,pane)=>{const view={pane:{...pane},viewportId:'attached-lease',closed:false,ready:Promise.resolve(),focus(){this.focused=true;},blur(){this.focused=false;},input(text){this.lastInput=text;},close(){this.closed=true;this.viewportId=null;}};streams.push(view);return view;},
+    openTerminal:async(element,snapshot,pane,onStatus)=>{const view={pane:{...pane},viewportId:'attached-lease',closed:false,ready:Promise.resolve(),status:onStatus,focus(){this.focused=true;},blur(){this.focused=false;},input(text){this.lastInput=text;},close(){this.closed=true;this.viewportId=null;}};streams.push(view);return view;},
     document:{hidden:false,body:new Element(),getElementById(id){if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);},createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelectorAll:()=>[],addEventListener(name,fn){handlers[name]=fn;}},
     window:{innerHeight:800,scrollY:0,scrollTo(){},addEventListener(name,fn){handlers[name]=fn;}},history:{pushState(){},replaceState(){}},location:{pathname:'/'},setInterval(){},
     fetch:async(url,options)=>{if(failed)throw new Error('network lost');
@@ -31,20 +31,24 @@ async function app(){
   vm.runInContext(source,context);await new Promise(setImmediate);
   const run=async code=>{await vm.runInContext(code,context);await new Promise(setImmediate);};
   await run('showPane(snapshot.panes[0])');
-  return{run,streams,snapshot,nodes,handlers,context,fail(value){failed=value;},failSend(value){sendFails=value;}};
+  return{run,streams,snapshot,nodes,handlers,context,memory,fail(value){failed=value;},failSend(value){sendFails=value;}};
 }
-test('focused output reconnects after network and stream failures without moving to another pane',async()=>{
+test('a closed controller stays closed until the user explicitly reopens the pane',async()=>{
   const a=await app();
   assert.equal(a.streams.length,1);a.fail(true);await a.run('refresh()');assert.equal(a.streams[0].closed,true);
-  a.fail(false);await a.run('refresh()');assert.equal(a.streams.length,2);assert.equal(a.streams[1].pane.sessionId,'session');
-  a.streams[1].close();await a.run('refresh()');assert.equal(a.streams.length,3);
-  await a.run('refresh()');assert.equal(a.streams.length,3);
+  a.fail(false);await a.run('refresh()');assert.equal(a.streams.length,1);
+  await a.run('back(); showPane(snapshot.panes[0])');assert.equal(a.streams.length,2);
+  a.streams[1].close();a.streams[1].status('Input interrupted. Check what arrived.');
+  await a.run('refresh()');assert.equal(a.streams.length,2);
+  assert.equal(a.streams[1].pane.sessionId,'session');
 });
 test('reconnect never follows a replaced session or opens output while backgrounded',async()=>{
   const a=await app();a.context.document.hidden=true;a.handlers.visibilitychange();assert.equal(a.streams[0].closed,true);
   await a.run('refresh()');assert.equal(a.streams.length,1);
   a.snapshot.panes[0]={...a.snapshot.panes[0],sessionId:'replacement'};a.context.document.hidden=false;
   await a.run('refresh()');assert.equal(a.streams.length,1);assert.match(a.nodes.get('message').textContent,/identity/);
+  a.snapshot.panes[0]={...a.snapshot.panes[0],sessionId:'session'};
+  await a.run('refresh()');assert.equal(a.streams.length,1);
 });
 test('non-working groups put newest completions first, using state changes when completion is missing',async()=>{
   const a=await app(),base=a.snapshot.panes[0];
@@ -100,4 +104,9 @@ test('focused status follows completion, new work, and disconnection',async()=>{
   a.fail(true);await a.run('refresh()');
   assert.equal(a.nodes.get('focus-status').textContent,'Disconnected');
   assert.equal(a.nodes.get('focus-dot').className,'status-dot unknown');
+});
+test('loading the app prunes expired drafts from the removed composer',async()=>{
+  const old='herdr-mobile:draft:old',recent='herdr-mobile:draft:recent';
+  const a=await app([[old,JSON.stringify({savedAt:Date.now()-8*86400000})],[recent,JSON.stringify({savedAt:Date.now()})]]);
+  assert.equal(a.memory.has(old),false);assert.equal(a.memory.has(recent),true);
 });

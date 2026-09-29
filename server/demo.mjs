@@ -9,5 +9,5 @@ export function demoSnapshot(cfg,epoch) {
   ]};
 }
 export function demoOutput(pane) {
- return `DEMO OUTPUT — not a real agent session\n\n${pane.title}\n${'─'.repeat(32)}\n\nThe focused view shows one agent, not a miniature desktop.\n\nThe normal text box below is where you type, paste or dictate a complete instruction. Enter adds a new line. Send is always explicit.\n\nTry switching to another card and back. Your draft stays with its original agent.\n\n${pane.summary}\n\nNo commands are executed in demo mode.`;
+ return `DEMO OUTPUT — not a real agent session\n\n${pane.title}\n${'─'.repeat(32)}\n\nThe focused view shows one agent at a time.\n\nTry switching to another card and back to explore the layout.\n\n${pane.summary}\n\nNo commands are executed in demo mode.`;
 }

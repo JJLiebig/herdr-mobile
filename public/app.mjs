@@ -1,6 +1,8 @@
 import { STATUS_LABELS, isFresh, isSnapshot } from '/shared/model.mjs';
 import { openTerminal } from './terminal.mjs';
 import { setupFocus } from './focus.mjs';
+import { DraftStore } from './drafts.mjs';
+new DraftStore(); // Prune drafts left by the former composer on each app load.
 const $=id=>document.getElementById(id);
 const focusUI=setupFocus(document,window);
 let snapshot=null,active=null,landingTab='priority',outputGeneration=0,outputAbort=null,terminalView=null,loadingSnapshot=false,overviewPosition=0,lastLandingSignature='',lastInteraction=0,treeInitialized=false;
@@ -92,10 +94,10 @@ async function refresh(){
   try{
     const response=await fetch('/api/snapshot',{cache:'no-store',signal:AbortSignal.timeout(7000)});const data=await response.json();
     if(!response.ok)throw new Error(data.message||'Companion unavailable');if(!isSnapshot(data))throw new Error('Unsupported companion snapshot.');
-    snapshot=data;renderConnection();renderHosts();if(!active)renderLanding();else if(!currentMatches()){closeOutput();renderFocusStatus('unknown','Unavailable');message('This agent identity or companion changed. Return to Agents and reopen it.');}else{const p=snapshot.panes.find(p=>p.terminalId===active.target.terminalId);renderFocusStatus(p.status);}
-    if(active&&currentMatches()&&!document.hidden&&snapshot.mode!=='demo'&&(!terminalView||(terminalView.closed&&!terminalView.inputFailed)))loadOutput();
+    snapshot=data;renderConnection();renderHosts();if(!active)renderLanding();else if(!currentMatches()){active.needsReopen=true;closeOutput();renderFocusStatus('unknown','Unavailable');message('This agent identity or companion changed. Return to Agents and reopen it.');}else{const p=snapshot.panes.find(p=>p.terminalId===active.target.terminalId);renderFocusStatus(p.status);}
+    if(active&&!active.needsReopen&&currentMatches()&&!document.hidden&&snapshot.mode!=='demo'&&!terminalView)loadOutput();
     updateInput();
-  }catch(error){if(snapshot)snapshot={...snapshot,connected:false};renderConnection(error.message);if(!active)renderLanding();closeOutput();renderFocusStatus('unknown','Disconnected');$('output-status').textContent='Reconnecting…';updateInput();}
+  }catch(error){if(snapshot)snapshot={...snapshot,connected:false};renderConnection(error.message);if(!active)renderLanding();else active.needsReopen=true;closeOutput();renderFocusStatus('unknown','Disconnected');$('output-status').textContent='Return to Agents and reopen; check what arrived.';updateInput();}
   finally{loadingSnapshot=false;}
 }
 function closeOutput(){outputGeneration++;outputAbort?.abort();outputAbort=null;terminalView?.close();terminalView=null;}
@@ -106,10 +108,10 @@ async function loadOutput(){
     if(snapshot.mode==='demo'){
       outputAbort=new AbortController();const response=await fetch('/api/output?terminal='+encodeURIComponent(pane.terminalId),{signal:outputAbort.signal});const data=await response.json();if(!response.ok)throw new Error(data.message||'Output unavailable');if(gen!==outputGeneration)return;box.append(el('pre','',data.text));
     }else{
-      const view=await openTerminal(box,snapshot,pane,status=>{if(gen===outputGeneration){$('output-status').textContent=status;updateInput();}});
+      const view=await openTerminal(box,snapshot,pane,status=>{if(gen===outputGeneration){if(status)active.needsReopen=true;$('output-status').textContent=status;updateInput();}});
       if(gen!==outputGeneration){view.close();return;}terminalView=view;await view.ready;
     }
-  }catch(error){if(gen!==outputGeneration||error.name==='AbortError')return;closeOutput();box.replaceChildren(el('pre','',error.message));}
+  }catch(error){if(gen!==outputGeneration||error.name==='AbortError')return;if(active)active.needsReopen=true;closeOutput();box.replaceChildren(el('pre','',error.message));}
 }
 function showPane(pane){
   focusUI.enter();
@@ -118,7 +120,7 @@ function showPane(pane){
   active={pane,target:targetFor(snapshot,pane)};
   $('overview').hidden=true;$('focus').hidden=false;$('focus-host').textContent=snapshot.host.label;
   $('breadcrumb').textContent=`${pane.space} / ${pane.tab}`;$('focus-title').textContent=pane.title;renderFocusStatus(pane.status);
-  message(snapshot.mode==='demo'?'Demo · messages are simulated.':'');
+  message(snapshot.mode==='demo'?'Demo · example terminal output.':'');
   updateInput();window.scrollTo(0,0);history.pushState({pane:true},'',`#pane=${encodeURIComponent(pane.terminalId)}`);loadOutput();
 }
 function back(){focusUI.leave();closeOutput();active=null;$('overview').hidden=false;$('focus').hidden=true;history.replaceState(null,'',location.pathname);renderLanding(true);window.scrollTo(0,overviewPosition);}
@@ -153,10 +155,10 @@ $('settings-button').addEventListener('click',()=>{$('settings-mode').textConten
 $('close-settings').addEventListener('click',()=>$('settings').close());
 window.addEventListener('pointerdown',()=>{lastInteraction=Date.now();},{passive:true});
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){closeOutput();updateInput();}
+  if(document.hidden){if(active&&snapshot?.mode!=='demo')active.needsReopen=true;closeOutput();updateInput();}
   else refresh();
 });
 window.addEventListener('pagehide',closeOutput);
-window.addEventListener('online',refresh);window.addEventListener('offline',()=>{if(snapshot)snapshot.connected=false;renderConnection('Offline. Input is disconnected.');closeOutput();renderFocusStatus('unknown','Disconnected');updateInput();});
+window.addEventListener('online',refresh);window.addEventListener('offline',()=>{if(snapshot)snapshot.connected=false;if(active)active.needsReopen=true;renderConnection('Offline. Input is disconnected.');closeOutput();renderFocusStatus('unknown','Disconnected');updateInput();});
 setInterval(()=>{refresh();if(snapshot&&!isFresh(snapshot)){renderConnection();if(!active)renderLanding();updateInput();}},5000);
 refresh();
